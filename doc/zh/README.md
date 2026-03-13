@@ -36,11 +36,3 @@
 | `scripts/test.sh` | 运行 CLI + API 测试 |
 | `scripts/setup.sh` | 配置 OpenClaw 代理集成 |
 | `scripts/uninstall.sh` | 卸载并恢复 |
-
-## 归档
-
-历史文档和已废弃脚本在 [`archive/`](../archive/) 目录中。
-
----
-
-**最后更新**: 2026-03-09

@@ -506,3 +506,17 @@ These enhancements provide:
 - **Professional UI** with modern table layouts and modals
 
 All changes maintain backward compatibility with existing YAML-based rule management.
+
+---
+
+# Dashboard Icon Update - 2026-03-13
+
+## Summary
+- Copied Icon.png from doc/images to dashboard static directory for frontend use.
+
+## Files Updated
+- `src/claw_vault/dashboard/static/Icon.png` — NEW copied from doc/images/Icon.png (181470 bytes)
+
+## Impact
+- Icon now available for dashboard frontend components
+- Supports UI branding and visual identity in the web interface

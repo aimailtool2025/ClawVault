@@ -1,16 +1,30 @@
-# ClawVault
+<div align="center">
+  <img src="./doc/images/logo.png" alt="ClawVault Logo" width="200"/>
+  <p><strong>OpenClaw Security Vault — Atomic "claw" control: every AI reach, within your sight.</strong></p>
+  <p>
+    <a href="https://github.com/tophant-ai/ClawVault/blob/master/LICENSE">
+      <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License"/>
+    </a>
+    <a href="https://www.python.org/downloads/">
+      <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"/>
+    </a>
+    <a href="https://github.com/tophant-ai/ClawVault/stargazers">
+      <img src="https://img.shields.io/github/stars/tophant-ai/ClawVault?style=social" alt="Stars"/>
+    </a>
+  </p>
+</div>
 
 **[English](./README.md)** | **[中文](./README.zh-CN.md)**
 
-> OpenClaw Security Vault — Atomic "claw" control: every AI reach, within your sight.
+## 🎯 ClawVault is right for you if
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-## What is ClawVault?
-
-ClawVault is an open-source security vault for OpenClaw Agent runtime.  
-The core goal is to provide **visual monitoring, atomic control, and generative policies** for Agents, model invocations, and file assets.
+- ✅ You want **visual monitoring** of AI agents and model invocations
+- ✅ You need **atomic control** over agent capabilities and permissions
+- ✅ You want **generative policies** that adapt to new threats automatically
+- ✅ You need **real-time alerts** when sensitive assets are accessed
+- ✅ You want **budget control** over AI token usage and costs
+- ✅ You need **security detection** for sensitive data, injections, and dangerous commands
+- ✅ You want a **unified dashboard** to manage all your AI security policies
 
 ### Core Capabilities
 
@@ -46,18 +60,18 @@ The system will automatically generate and execute the corresponding policy rule
 
 ---
 
-### Features
+## ✨ Features
 
-- **Sensitive Data Detection** — API keys, passwords, PII, credit cards, and 15+ pattern types
-- **Prompt Injection Defense** — Block role hijacking, instruction override, data exfiltration
-- **Dangerous Command Guard** — Intercept `rm -rf`, `curl|bash`, privilege escalation
-- **Auto-Sanitization** — Replace secrets with placeholders, restore on response
-- **Token Budget Control** — Daily/monthly limits with cost alerts
-- **Real-time Dashboard** — Web UI with per-agent config, detection details, quick tests
+- **🔍 Sensitive Data Detection** — API keys, passwords, PII, credit cards, and 15+ pattern types
+- **🛡️ Prompt Injection Defense** — Block role hijacking, instruction override, data exfiltration
+- **⚠️ Dangerous Command Guard** — Intercept `rm -rf`, `curl|bash`, privilege escalation
+- **🔄 Auto-Sanitization** — Replace secrets with placeholders, restore on response
+- **💰 Token Budget Control** — Daily/monthly limits with cost alerts
+- **📊 Real-time Dashboard** — Web UI with per-agent config, detection details, quick tests
 
 The vault includes a **transparent proxy gateway module** that intercepts traffic between your AI tools and external APIs (OpenAI, Anthropic, etc.).
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # Install
@@ -73,7 +87,7 @@ claw-vault scan "password=MySecret key=sk-proj-abc123"
 claw-vault demo
 ```
 
-## Deploy to Server
+## 🚀 Deploy to Server
 
 ```bash
 # One command: pack, upload, install
@@ -84,7 +98,7 @@ claw-vault demo
 ./scripts/start.sh
 ```
 
-## Scripts
+## 📜 Scripts
 
 | Script | Usage |
 |--------|-------|
@@ -95,14 +109,14 @@ claw-vault demo
 | `scripts/setup.sh` | Setup OpenClaw proxy integration |
 | `scripts/uninstall.sh` | Uninstall and restore original state |
 
-## Architecture
+## 🏗️ Architecture
 
 ```
     OpenClaw
        │
        ▼
 ┌─────────────────────────────────┐
-│    ClawVault (Security Vault)    │
+│    ClawVault (Security Vault)   │
 ├─────────────────────────────────┤
 │ Gateway Module                  │
 │  • Transparent Proxy  :8765     │
@@ -126,7 +140,7 @@ claw-vault demo
 └─────────────────────────────────┘
 ```
 
-## Configuration
+## ⚙️ Configuration
 
 ```yaml
 # ~/.ClawVault/config.yaml
@@ -141,7 +155,7 @@ monitor:
   daily_token_budget: 50000
 ```
 
-### Development Progress
+## 📊 Development Progress
 
 | Capability Module | Status | Notes |
 |---------|------|------|
@@ -152,7 +166,7 @@ monitor:
 
 ---
 
-## Documentation
+## 📚 Documentation
 
 | Document | Description |
 |------|------|
@@ -165,7 +179,7 @@ monitor:
 
 See [doc/](doc/) for the full documentation index.
 
-## Development
+## 🛠️ Development
 
 ```bash
 git clone https://github.com/tophant-ai/ClawVault.git
@@ -175,6 +189,20 @@ pip install -e ".[dev]"
 pytest
 ```
 
-## License
+## 📄 License
 
-MIT
+MIT © 2026 [Tophant](https://www.tophant.com/)
+
+---
+
+## 🤝 Community
+
+- [GitHub Issues](https://github.com/tophant-ai/ClawVault/issues) — Bug reports and feature requests
+- [Security Issues](https://github.com/tophant-ai/ClawVault/security/advisories) — Security vulnerability reports
+
+---
+
+<div align="center">
+  <p><strong>🦞 Built for people who want to secure AI, not babysit agents.</strong></p>
+  <p><a href="#top">Back to top ↑</a></p>
+</div>

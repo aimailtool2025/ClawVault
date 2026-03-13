@@ -48,10 +48,3 @@ All Chinese-only guides now live under `doc/zh/` to keep languages separated.
 | `scripts/setup.sh` | Configure OpenClaw proxy integration |
 | `scripts/uninstall.sh` | Uninstall and restore |
 
-## Archive
-
-Historical documents and deprecated scripts are in [`archive/`](./archive/).
-
----
-
-**Last updated**: 2026-03-11
