@@ -26,6 +26,16 @@
 - ✅ You need **security detection** for sensitive data, injections, and dangerous commands
 - ✅ You want a **unified dashboard** to manage all your AI security policies
 
+### Effect
+
+<div align="center">
+
+| Interception | Interception Record |
+|:-------------------:|:----------------:|
+| <img src="doc/images/block-tui.png" width="400"> | <img src="doc/images/block-web.png" width="400"> |
+
+</div>
+
 ### Core Capabilities
 
 #### 1. Visual Monitoring
@@ -71,20 +81,43 @@ The system will automatically generate and execute the corresponding policy rule
 
 The vault includes a **transparent proxy gateway module** that intercepts traffic between your AI tools and external APIs (OpenAI, Anthropic, etc.).
 
+
 ## 🚀 Quick Start
+
+### Option 1: Install as OpenClaw Skill (Recommended)
+
+```bash
+# Install from ClawHub
+openclaw skills install tophant-clawvault
+
+# Or install via clawhub CLI
+clawhub install tophant-clawvault
+```
+
+**ClawHub:** https://clawhub.ai/Martin2877/tophant-clawvault
+
+The skill provides AI-guided installation and management:
+- `/clawvault install --mode quick` - Quick setup
+- `/clawvault health` - Check status
+- `/clawvault generate-rule "Block AWS credentials"` - Create security rules
+- `/clawvault test --category all` - Run detection tests
+
+See [skills/tophant-clawvault/](skills/tophant-clawvault/) for skill documentation.
+
+### Option 2: Install as Python Package
 
 ```bash
 # Install
 pip install -e .
 
 # Start (proxy + dashboard)
-claw-vault start
+clawvault start
 
 # Scan text
-claw-vault scan "password=MySecret key=sk-proj-abc123"
+clawvault scan "password=MySecret key=sk-proj-abc123"
 
 # Interactive demo
-claw-vault demo
+clawvault demo
 ```
 
 ## 🚀 Deploy to Server

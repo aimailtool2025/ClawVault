@@ -9,6 +9,7 @@
 | [INSTALL_DEV.md](./INSTALL_DEV.md) | 开发环境搭建 |
 | [INSTALL_PRODUCTION.md](./INSTALL_PRODUCTION.md) | 生产环境部署 |
 | [OPENCLAW_INTEGRATION.md](./OPENCLAW_INTEGRATION.md) | OpenClaw 集成指南 |
+| [OPENCLAW_SKILL.md](./OPENCLAW_SKILL.md) | OpenClaw Skill 完整指南 |
 
 ## 参考文档
 

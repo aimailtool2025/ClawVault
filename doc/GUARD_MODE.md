@@ -57,16 +57,14 @@ ClawVault provides three guard modes. Switch them in real-time via the Dashboard
 
 ```json
 {
-	"id": "claw-vault-xxxx",
-	"object": "chat.completion",
-	"choices": [
-		{
-			"message": {
-				"role": "assistant",
-				"content": "⚠️ [ClawVault Security Alert]\n\nSensitive data detected — enable auto-sanitize for masking\n\nSensitive data detected:\n  • AWS Access Key ID\n\nPlease modify your message and resend, or contact an administrator to adjust the security policy."
-			}
-		}
-	]
+  "id": "clawvault-xxxx",
+  "object": "chat.completion",
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "[ClawVault] Sensitive data detected:\n  - AWS Access Key ID: AKIA***MPLE\n\nPlease revise your message and resend."
+    }
+  }]
 }
 ```
 

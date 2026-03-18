@@ -1,4 +1,4 @@
-"""ClawVault: Physical-level memory isolation vault for AI credentials."""
+"""ClawVault: Atomic "claw" control: every AI reach, within your sight."""
 
 __version__ = "0.1.0"
-__author__ = "SPAI Lab"
+__author__ = "Tophant SPAI Lab"

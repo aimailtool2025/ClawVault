@@ -11,6 +11,7 @@
 | [INSTALL_DEV.md](./INSTALL_DEV.md) | Development environment setup |
 | [INSTALL_PRODUCTION.md](./INSTALL_PRODUCTION.md) | Production server deployment |
 | [OPENCLAW_INTEGRATION.md](./OPENCLAW_INTEGRATION.md) | OpenClaw integration guide |
+| [OPENCLAW_SKILL.md](./OPENCLAW_SKILL.md) | OpenClaw skill complete guide |
 
 ### Reference
 
