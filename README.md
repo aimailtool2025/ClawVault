@@ -33,7 +33,7 @@ Activate your personal AI Vault:
 - 2️⃣ Set up and customize your secure storage
 - 3️⃣ Create remote management skills
 
-![Sample Video](doc/void/video-en.mp4)
+https://github.com/user-attachments/assets/2098b271-f844-4db5-b44a-f836e36d314c
 
 ### Effect
 
