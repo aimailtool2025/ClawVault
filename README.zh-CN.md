@@ -34,6 +34,8 @@
 - 2️⃣自主配置储藏室
 - 3️⃣编写远程管理Skill
 
+https://github.com/user-attachments/assets/361db35e-d85c-493b-a3b2-517164659a01
+
 ## 🖼️ 效果展示
 
 <div align="center">
