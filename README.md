@@ -33,7 +33,7 @@ Activate your personal AI Vault:
 - 2️⃣ Set up and customize your secure storage
 - 3️⃣ Create remote management skills
 
-https://github.com/GH-H4d35/ClawVault/blob/a5b7de8d029f7397046dbec09ceb86d890515f8f/doc/void/video-en.mp4
+![Sample Video](doc/void/video-en.mp4)
 
 ### Effect
 
