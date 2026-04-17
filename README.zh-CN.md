@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="./doc/images/logo.png" alt="ClawVault Logo" width="200"/>
-  <h1>ClawVault</h1>
+  <img src="./doc/images/logo1.png" alt="ClawVault Logo" width="200"/>
+  
   <p><strong>OpenClaw 安全保险箱 — 原子级"钳"控，让 AI 的每次伸手都在你的视线之内。</strong></p>
   <p>
     <a href="https://github.com/tophant-ai/ClawVault/blob/master/LICENSE">

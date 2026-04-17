@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./doc/images/logo.png" alt="ClawVault Logo" width="200"/>
+  <img src="./doc/images/logo1.png" alt="ClawVault Logo" width="200"/>
   <p><strong>OpenClaw Security Vault — Atomic "claw" control: every AI reach, within your sight.</strong></p>
   <p>
     <a href="https://github.com/tophant-ai/ClawVault/blob/master/LICENSE">
