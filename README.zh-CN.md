@@ -34,15 +34,19 @@
 - 2️⃣自主配置储藏室
 - 3️⃣编写远程管理Skill
 
+https://github.com/user-attachments/assets/361db35e-d85c-493b-a3b2-517164659a01
+
 ## 🖼️ 效果展示
 
 <div align="center">
-
+  
 | 交互拦截效果 | 拦截记录 |
 |:------------:|:------------:|
 | <img src="doc/images/block-tui.png" width="400"> | <img src="doc/images/block-web.png" width="400"> |
 
 </div>
+
+https://github.com/user-attachments/assets/d580cfa1-8410-4095-90cb-3d693413a24e
 
 ### 核心能力
 
@@ -91,6 +95,8 @@
 保险箱内置 **透明代理网关模块**，用于拦截 AI 工具与外部 API（OpenAI、Anthropic 等）之间的流量。
 
 ## 🚀 快速开始
+
+https://github.com/user-attachments/assets/1f424172-8833-4ccc-b0d2-abf67c1758dd
 
 ### 方式 1：作为 OpenClaw Skill 安装（推荐）
 

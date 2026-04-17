@@ -33,6 +33,8 @@ Activate your personal AI Vault:
 - 2️⃣ Set up and customize your secure storage
 - 3️⃣ Create remote management skills
 
+https://github.com/user-attachments/assets/2098b271-f844-4db5-b44a-f836e36d314c
+
 ### Effect
 
 <div align="center">
@@ -42,6 +44,8 @@ Activate your personal AI Vault:
 | <img src="doc/images/block-tui.png" width="400"> | <img src="doc/images/block-web.png" width="400"> |
 
 </div>
+
+https://github.com/user-attachments/assets/d580cfa1-8410-4095-90cb-3d693413a24e
 
 ### Core Capabilities
 
@@ -90,6 +94,8 @@ The vault includes a **transparent proxy gateway module** that intercepts traffi
 
 
 ## 🚀 Quick Start
+
+https://github.com/user-attachments/assets/1f424172-8833-4ccc-b0d2-abf67c1758dd
 
 ### Option 1: Install as OpenClaw Skill (Recommended)
 
