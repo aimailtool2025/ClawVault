@@ -26,22 +26,22 @@ Copy the skill to your OpenClaw skills directory:
 
 ```bash
 # Install from ClawHub
-openclaw skills install tophant-clawvault-installer
+openclaw skills install tophant-clawvault
 
 # Or use clawhub CLI
-clawhub install tophant-clawvault-installer
+clawhub install tophant-clawvault
 ```
 
-**ClawHub:** https://clawhub.ai/Martin2877/tophant-clawvault-installer
+**ClawHub:** https://clawhub.ai/Martin2877/tophant-clawvault
 
 **Option 2: Install from Local Repository**
 
 ```bash
 # Copy skill directory
-cp -r skills/tophant-clawvault-installer ~/.openclaw/skills/
+cp -r skills/tophant-clawvault ~/.openclaw/skills/
 
 # Or create symbolic link (recommended for development)
-ln -s /path/to/ClawVault/skills/tophant-clawvault-installer ~/.openclaw/skills/tophant-clawvault-installer
+ln -s /path/to/ClawVault/skills/tophant-clawvault ~/.openclaw/skills/tophant-clawvault
 ```
 
 Restart OpenClaw to load the skill:
@@ -54,7 +54,7 @@ Verify the skill is loaded:
 
 ```bash
 openclaw skills list
-# Should show: tophant-clawvault-installer
+# Should show: tophant-clawvault
 ```
 
 ### Method 2: Use as Built-in Skill
@@ -77,7 +77,7 @@ Download and use the standalone script without OpenClaw:
 
 ```bash
 # Download script
-curl -O https://raw.githubusercontent.com/tophant-ai/ClawVault/main/skills/tophant-clawvault-installer/clawvault_manager.py
+curl -O https://raw.githubusercontent.com/tophant-ai/ClawVault/main/skills/tophant-clawvault/clawvault_manager.py
 
 # Use directly
 python clawvault_manager.py install --mode quick

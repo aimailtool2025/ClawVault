@@ -1,10 +1,20 @@
-# ClawVault Installer Skill
+# ClawVault Skill
 
-AI security system for OpenClaw — protect your AI agents from prompt injection, data leakage, and dangerous commands.
+AI security system for OpenClaw - protect your AI agents from prompt injection, data leakage, and dangerous commands.
 
-## Before Installing
+## ⚠️ Security Notice
 
-This skill installs and operates a local HTTPS-inspection proxy. Capabilities, defaults, and risks are documented in [SECURITY.md](./SECURITY.md) — please review it before installing.
+**Important:** ClawVault operates as a local HTTP proxy that inspects AI traffic.
+
+- ClawVault can see API requests, responses, and API keys
+- This is intentional and necessary for threat detection
+- All data stays on your local machine
+- **Review [SECURITY.md](./SECURITY.md) before installing**
+
+**Dashboard Security:**
+- Default: Binds to `127.0.0.1` (localhost only) - Secure ✅
+- Remote: `--dashboard-host 0.0.0.0` - Exposes to network ⚠️
+- **Recommendation:** Use SSH tunneling for remote access
 
 ## Quick Start
 
@@ -14,22 +24,22 @@ This skill installs and operates a local HTTPS-inspection proxy. Capabilities, d
 
 ```bash
 # Install from ClawHub
-openclaw skills install tophant-clawvault-installer
+openclaw skills install tophant-clawvault
 
 # Or use clawhub CLI
-clawhub install tophant-clawvault-installer
+clawhub install tophant-clawvault
 ```
 
-**ClawHub:** https://clawhub.ai/Martin2877/tophant-clawvault-installer
+**ClawHub:** https://clawhub.ai/Martin2877/tophant-clawvault
 
 **Option 2: Install from Local Repository**
 
 ```bash
 # Copy to OpenClaw skills directory
-cp -r skills/tophant-clawvault-installer ~/.openclaw/skills/
+cp -r skills/tophant-clawvault ~/.openclaw/skills/
 
 # Or create symbolic link
-ln -s /path/to/ClawVault/skills/tophant-clawvault-installer ~/.openclaw/skills/tophant-clawvault-installer
+ln -s /path/to/ClawVault/skills/tophant-clawvault ~/.openclaw/skills/tophant-clawvault
 
 # Restart OpenClaw
 openclaw restart
@@ -39,16 +49,16 @@ openclaw restart
 
 ```bash
 # Install ClawVault
-/tophant-clawvault-installer install --mode quick
+/clawvault install --mode quick
 
 # Check health
-/tophant-clawvault-installer health
+/clawvault health
 
 # Generate security rule
-/tophant-clawvault-installer generate-rule "Block all AWS credentials" --apply
+/clawvault generate-rule "Block all AWS credentials" --apply
 
 # Run tests
-/tophant-clawvault-installer test --category all
+/clawvault test --category all
 ```
 
 ## Features
