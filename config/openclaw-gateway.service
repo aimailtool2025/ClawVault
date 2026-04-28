@@ -1,0 +1,32 @@
+[Unit]
+Description=OpenClaw Gateway (v2026.4.21)
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Environment=HTTP_PROXY=http://127.0.0.1:8765
+Environment=HTTPS_PROXY=http://127.0.0.1:8765
+Environment=NO_PROXY=localhost,127.0.0.1
+Environment=NODE_TLS_REJECT_UNAUTHORIZED=0
+ExecStart=/usr/bin/node /usr/lib/node_modules/openclaw/dist/index.js gateway --port 18789
+Restart=always
+RestartSec=5
+RestartPreventExitStatus=78
+TimeoutStopSec=30
+TimeoutStartSec=30
+SuccessExitStatus=0 143
+KillMode=control-group
+Environment=HOME=/home/ubuntu
+Environment=TMPDIR=/tmp
+Environment=PATH=/usr/bin:/home/ubuntu/.local/bin:/home/ubuntu/.npm-global/bin:/home/ubuntu/bin:/home/ubuntu/.volta/bin:/home/ubuntu/.asdf/shims:/home/ubuntu/.bun/bin:/home/ubuntu/.nvm/current/bin:/home/ubuntu/.fnm/current/bin:/home/ubuntu/.local/share/pnpm:/usr/local/bin:/bin
+Environment=OPENCLAW_GATEWAY_PORT=18789
+Environment=OPENCLAW_SYSTEMD_UNIT=openclaw-gateway.service
+Environment="OPENCLAW_WINDOWS_TASK_NAME=OpenClaw Gateway"
+Environment=OPENCLAW_SERVICE_MARKER=openclaw
+Environment=OPENCLAW_SERVICE_KIND=gateway
+Environment=OPENCLAW_SERVICE_VERSION=2026.4.21
+
+[Install]
+WantedBy=default.target
