@@ -63,6 +63,16 @@ class ClawVaultAddon:
             "api.openai.com",
             "api.anthropic.com",
             "api.siliconflow.cn",
+            "*.openai.azure.com",
+            "generativelanguage.googleapis.com",
+            "openrouter.ai",
+            "dashscope.aliyuncs.com",
+            "ark.cn-beijing.volces.com",
+            "api.deepseek.com",
+            "api.moonshot.cn",
+            "api.minimaxi.com",
+            "open.bigmodel.cn",
+            "platform.minimaxi.com",
         ]
         self._session_id = str(uuid.uuid4())[:8]
         self._pending_requests: dict[str, dict[str, Any]] = {}
