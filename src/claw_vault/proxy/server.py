@@ -73,6 +73,8 @@ class ProxyServer:
             token_counter=self.token_counter,
             intercept_hosts=settings.proxy.intercept_hosts,
             traffic_logger=self.traffic_logger,
+            intent_enabled=settings.intent.enabled,
+            intent_guard_mode=settings.intent.guard_mode,
         )
 
     def set_audit_callback(

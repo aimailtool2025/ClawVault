@@ -10,6 +10,7 @@ import structlog
 
 from claw_vault.detector.command import CommandDetector, CommandRisk
 from claw_vault.detector.injection import InjectionDetector, InjectionResult
+from claw_vault.detector.intent import IntentViolation, analyze_response
 from claw_vault.detector.patterns import DetectionResult, PatternCategory
 from claw_vault.detector.sensitive import SensitiveDetector
 
@@ -58,6 +59,7 @@ class ScanResult:
     sensitive: list[DetectionResult] = field(default_factory=list)
     commands: list[CommandRisk] = field(default_factory=list)
     injections: list[InjectionResult] = field(default_factory=list)
+    intent_violations: list[IntentViolation] = field(default_factory=list)
 
     @property
     def threat_level(self) -> ThreatLevel:
@@ -78,15 +80,17 @@ class ScanResult:
         scores.extend(result.risk_score for result in self.sensitive)
         scores.extend(result.risk_score for result in self.commands)
         scores.extend(result.risk_score for result in self.injections)
+        # 意图违规的风险评分映射到 0-10 范围
+        scores.extend(v.risk_score * 10 for v in self.intent_violations)
         return max(scores) if scores else 0.0
 
     @property
     def has_threats(self) -> bool:
-        return bool(self.sensitive or self.commands or self.injections)
+        return bool(self.sensitive or self.commands or self.injections or self.intent_violations)
 
     @property
     def total_detections(self) -> int:
-        return len(self.sensitive) + len(self.commands) + len(self.injections)
+        return len(self.sensitive) + len(self.commands) + len(self.injections) + len(self.intent_violations)
 
     def summary(self) -> dict:
         return {
@@ -95,6 +99,7 @@ class ScanResult:
             "sensitive_count": len(self.sensitive),
             "command_count": len(self.commands),
             "injection_count": len(self.injections),
+            "intent_violation_count": len(self.intent_violations),
             "total": self.total_detections,
         }
 
@@ -125,6 +130,27 @@ class DetectionEngine:
         if detection_config is None or detection_config.get("dangerous_commands", True):
             commands = self.command_detector.detect(text)
         return ScanResult(commands=commands)
+
+    def scan_response_intent(
+        self, response_body: dict | list | str, user_text: str,
+    ) -> list[IntentViolation]:
+        """扫描 AI 响应中的 ToolCall 意图违规。
+
+        Args:
+            response_body: AI 响应体（dict/list/str）
+            user_text: 用户最后一条消息文本
+
+        Returns:
+            意图违规列表
+        """
+        violations = analyze_response(response_body, user_text)
+        if violations:
+            logger.info(
+                "intent_violations_detected",
+                violation_count=len(violations),
+                max_risk=max(v.risk_score for v in violations),
+            )
+        return violations
 
     def scan_full(self, text: str, detection_config: dict[str, bool] | None = None) -> ScanResult:
         """Run all detectors on the given text."""

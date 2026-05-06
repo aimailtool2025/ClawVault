@@ -51,6 +51,8 @@ class ClawVaultAddon:
         audit_callback: Callable[[AuditRecord, ScanResult | None], None] | None = None,
         intercept_hosts: list[str] | None = None,
         traffic_logger: ProxyTrafficLogger | None = None,
+        intent_enabled: bool = True,
+        intent_guard_mode: str = "permissive",
     ) -> None:
         self.engine = detection_engine or DetectionEngine()
         self.rules = rule_engine or RuleEngine()
@@ -59,6 +61,8 @@ class ClawVaultAddon:
         self.token_counter = token_counter or TokenCounter()
         self.audit_callback = audit_callback
         self.traffic_logger = traffic_logger
+        self.intent_enabled = intent_enabled
+        self.intent_guard_mode = intent_guard_mode
         self.intercept_hosts = intercept_hosts or [
             "api.openai.com",
             "api.anthropic.com",
@@ -235,6 +239,7 @@ class ClawVaultAddon:
             "risk_score": None,
             "response_logged": False,
             "synthetic_response": False,
+            "user_text": scan_text,
         }
 
         # Skip detection if agent is disabled
@@ -270,6 +275,8 @@ class ClawVaultAddon:
         pending["action"] = action_result.action.value
         pending["risk_level"] = scan.threat_level.value
         pending["risk_score"] = scan.max_risk_score
+        # 保存用户文本，用于响应方向的意图识别
+        pending["user_text"] = scan_text
 
         if action_result.action == Action.BLOCK:
             # Remember the blocked content so it can be stripped from future requests
@@ -420,6 +427,140 @@ class ClawVaultAddon:
                 url=flow.request.pretty_url,
                 threats=response_scan.total_detections,
             )
+
+        # 意图识别攻击防护：检测响应中的 ToolCall 越界操作
+        intent_violations = []
+        user_text = req_info.get("user_text", "") if req_info else ""
+        logger.warning(
+            "intent_scan_start",
+            has_user_text=bool(user_text),
+            user_text_preview=user_text[:80] if user_text else "",
+            intent_enabled=self.intent_enabled,
+            body_type=type(body).__name__,
+            body_len=len(body) if isinstance(body, str) else 0,
+            is_sse=isinstance(body, str) and "data:" in body[:100] if body else False,
+        )
+        if user_text and self.intent_enabled:
+            try:
+                if isinstance(body, str):
+                    try:
+                        response_data = json.loads(body)
+                        logger.warning("intent_scan_body_parsed_as_json")
+                    except (json.JSONDecodeError, ValueError):
+                        # SSE 流式响应：聚合 tool_call delta 分片
+                        response_data = self._aggregate_sse_tool_calls(body)
+                        logger.warning(
+                            "intent_scan_body_parsed_as_sse",
+                            has_tool_calls=response_data is not None,
+                            openai_chunks=bool(response_data and "choices" in (response_data or {})),
+                        )
+                else:
+                    response_data = body
+                if response_data:
+                    intent_violations = self.engine.scan_response_intent(response_data, user_text)
+                    logger.warning(
+                        "intent_scan_result",
+                        violations=len(intent_violations),
+                    )
+                else:
+                    # dump SSE body 的前 5 行 data: 内容用于调试
+                    sse_preview = []
+                    for raw_line in body.splitlines()[:20]:
+                        line = raw_line.strip()
+                        if line.startswith("data:"):
+                            sse_preview.append(line[:200])
+                    logger.warning(
+                        "intent_scan_no_tool_calls",
+                        sse_preview=sse_preview[:5],
+                    )
+            except Exception as exc:
+                logger.warning("intent_scan_failed", error=str(exc))
+        else:
+            logger.warning("intent_scan_skipped", reason="no user_text" if not user_text else "intent disabled")
+
+        if intent_violations:
+            # 根据 intent guard mode 决策（优先使用 intent 自身的 guard_mode）
+            guard_mode = self.intent_guard_mode
+            max_violation = max(intent_violations, key=lambda v: v.risk_score)
+            response_scan.intent_violations = intent_violations
+
+            if guard_mode == "strict":
+                # 严格模式：拦截所有意图违规
+                logger.warning(
+                    "intent_violation_blocked",
+                    url=flow.request.pretty_url,
+                    violations=len(intent_violations),
+                    max_risk=max_violation.risk_score,
+                    guard_mode=guard_mode,
+                )
+                block_msg = (
+                    f"[ClawVault] 检测到意图越界操作，已拦截。\n"
+                    f"用户意图: {max_violation.user_intent}\n"
+                    f"越界工具: {max_violation.tool_name} ({max_violation.tool_intent.value})\n"
+                    f"原因: {max_violation.reason}\n"
+                    f"风险评分: {max_violation.risk_score:.2f} ({max_violation.risk_level})"
+                )
+                orig_body = req_info.get("original_body", "") if req_info else ""
+                flow.response = self._make_llm_response(orig_body, block_msg)
+                # 标记为合成响应
+                if req_info:
+                    req_info["synthetic_response"] = True
+                    req_info["response_logged"] = False
+                    req_info["risk_level"] = max_violation.risk_level.lower()
+                    req_info["risk_score"] = max_violation.risk_score * 10
+
+            elif guard_mode == "interactive":
+                # 交互模式：拦截高危/严重违规，警告中危
+                high_violations = [v for v in intent_violations if v.risk_level in ("HIGH", "CRITICAL")]
+                if high_violations:
+                    worst = max(high_violations, key=lambda v: v.risk_score)
+                    logger.warning(
+                        "intent_violation_blocked_interactive",
+                        url=flow.request.pretty_url,
+                        violations=len(high_violations),
+                        max_risk=worst.risk_score,
+                    )
+                    block_msg = (
+                        f"[ClawVault] 检测到高危意图越界操作，已拦截。\n"
+                        f"用户意图: {worst.user_intent}\n"
+                        f"越界工具: {worst.tool_name} ({worst.tool_intent.value})\n"
+                        f"原因: {worst.reason}\n"
+                        f"风险评分: {worst.risk_score:.2f} ({worst.risk_level})"
+                    )
+                    flow.response = self._make_llm_response((req_info or {}).get('original_body', ''), block_msg)
+                    if req_info:
+                        req_info["synthetic_response"] = True
+                        req_info["response_logged"] = False
+                        req_info["risk_level"] = worst.risk_level.lower()
+                        req_info["risk_score"] = worst.risk_score * 10
+                else:
+                    logger.info(
+                        "intent_violation_warned",
+                        url=flow.request.pretty_url,
+                        violations=len(intent_violations),
+                    )
+
+            else:  # permissive
+                # 宽松模式：仅记录日志，decision 改为 LOGGED
+                for v in intent_violations:
+                    v.decision = "LOGGED"
+                logger.info(
+                    "intent_violation_logged",
+                    url=flow.request.pretty_url,
+                    violations=len(intent_violations),
+                    max_risk=max_violation.risk_score,
+                    user_intent=max_violation.user_intent,
+                    tool_name=max_violation.tool_name,
+                    tool_intent=max_violation.tool_intent.value,
+                    guard_mode=guard_mode,
+                )
+
+            # 推送意图违规事件到仪表盘
+            try:
+                from claw_vault.dashboard.api import push_intent_event
+                push_intent_event(intent_violations, max_violation.user_intent, guard_mode)
+            except Exception as exc:
+                logger.debug("intent_event_push_failed", error=str(exc))
 
         # Record token usage
         if req_info:
@@ -817,6 +958,108 @@ class ClawVaultAddon:
             return False
         content_type = flow.response.headers.get("Content-Type", "")
         return "text/event-stream" in content_type.lower()
+
+    @staticmethod
+    def _aggregate_sse_tool_calls(body: str) -> dict | None:
+        """从 SSE 流聚合完整的 tool_calls，返回 OpenAI 格式响应对象。
+
+        支持两种 SSE 格式：
+        - OpenAI: choices[].delta.tool_calls[] 分片
+        - Anthropic: content_block_start(tool_use) + content_block_delta(input_json_delta)
+        """
+        # OpenAI 格式聚合
+        openai_tc_map: dict[int, dict] = {}
+        # Anthropic 格式聚合: index → {id, name, input_json}
+        anthropic_tc_map: dict[int, dict] = {}
+
+        for raw_line in body.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith(":") or not line.startswith("data:"):
+                continue
+            payload = line[5:].strip()
+            if not payload or payload == "[DONE]":
+                continue
+            try:
+                chunk = json.loads(payload)
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+            # === OpenAI SSE 格式: choices[].delta.tool_calls[] ===
+            choices = chunk.get("choices", [])
+            if isinstance(choices, list):
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    delta = choice.get("delta", {})
+                    if not isinstance(delta, dict):
+                        continue
+                    tc_deltas = delta.get("tool_calls", [])
+                    if isinstance(tc_deltas, list):
+                        for tc in tc_deltas:
+                            if not isinstance(tc, dict):
+                                continue
+                            idx = tc.get("index", 0)
+                            if idx not in openai_tc_map:
+                                openai_tc_map[idx] = {
+                                    "id": tc.get("id", ""),
+                                    "type": tc.get("type", "function"),
+                                    "function": {"name": "", "arguments": ""},
+                                }
+                            entry = openai_tc_map[idx]
+                            if tc.get("id"):
+                                entry["id"] = tc["id"]
+                            fn = tc.get("function", {})
+                            if isinstance(fn, dict):
+                                if fn.get("name"):
+                                    entry["function"]["name"] = fn["name"]
+                                if fn.get("arguments"):
+                                    entry["function"]["arguments"] += fn["arguments"]
+
+            # === Anthropic SSE 格式 ===
+            msg_type = chunk.get("type", "")
+
+            # content_block_start: 捕获 tool_use 的 id 和 name
+            if msg_type == "content_block_start":
+                cb = chunk.get("content_block", {})
+                if isinstance(cb, dict) and cb.get("type") == "tool_use":
+                    idx = chunk.get("index", 0)
+                    anthropic_tc_map[idx] = {
+                        "id": cb.get("id", ""),
+                        "name": cb.get("name", ""),
+                        "input_json": "",
+                    }
+
+            # content_block_delta: 累积 input_json_delta
+            elif msg_type == "content_block_delta":
+                idx = chunk.get("index", 0)
+                if idx in anthropic_tc_map:
+                    delta = chunk.get("delta", {})
+                    if isinstance(delta, dict) and delta.get("type") == "input_json_delta":
+                        partial = delta.get("partial_json", "")
+                        if partial:
+                            anthropic_tc_map[idx]["input_json"] += partial
+
+        # 优先返回 OpenAI 格式结果
+        if openai_tc_map:
+            tc_list = [openai_tc_map[i] for i in sorted(openai_tc_map)]
+            return {"choices": [{"message": {"role": "assistant", "tool_calls": tc_list}}]}
+
+        # Anthropic 格式转换为 OpenAI 兼容格式
+        if anthropic_tc_map:
+            tc_list = []
+            for idx in sorted(anthropic_tc_map):
+                block = anthropic_tc_map[idx]
+                tc_list.append({
+                    "id": block["id"],
+                    "type": "function",
+                    "function": {
+                        "name": block["name"],
+                        "arguments": block["input_json"],
+                    },
+                })
+            return {"choices": [{"message": {"role": "assistant", "tool_calls": tc_list}}]}
+
+        return None
 
     @staticmethod
     def _aggregate_sse_body(body: str) -> str:

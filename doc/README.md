@@ -20,6 +20,7 @@
 | [architecture.md](./architecture.md) | System architecture and module design |
 | [scenarios.md](./scenes.md) | Use cases and roadmap |
 | [GUARD_MODE.md](./GUARD_MODE.md) | Guard modes: strict / interactive / permissive |
+| [INTENT_GUARD.md](./INTENT_GUARD.md) | Intent-based attack protection (response-direction) |
 
 ## Chinese Documents (`doc/zh/`)
 
@@ -37,6 +38,7 @@ All Chinese-only guides now live under `doc/zh/` to keep languages separated.
 | [zh/GENERATIVE_RULES.md](./zh/GENERATIVE_RULES.md) | 生成式规则引擎详解 |
 | [zh/GENERATIVE_RULES_QUICKSTART.md](./zh/GENERATIVE_RULES_QUICKSTART.md) | 生成式规则快速开始 |
 | [zh/TEST_CASES_RULES.md](./zh/TEST_CASES_RULES.md) | 自定义规则与测试用例清单 |
+| [zh/INTENT_GUARD.md](./zh/INTENT_GUARD.md) | 意图识别攻击防护（响应方向） |
 
 ## Scripts
 

@@ -91,6 +91,12 @@ class CloudConfig(BaseModel):
     aiscc_api_key: str = ""
 
 
+class IntentConfig(BaseModel):
+    """意图识别攻击防护配置。"""
+    enabled: bool = True
+    guard_mode: str = "permissive"  # permissive | interactive | strict
+
+
 class OpenClawSessionRedactionConfig(BaseModel):
     enabled: bool = True
     sessions_root: Path = Path.home() / ".openclaw" / "agents"
@@ -200,6 +206,7 @@ class Settings(BaseSettings):
     audit: AuditConfig = Field(default_factory=AuditConfig)
     dashboard: DashboardConfig = Field(default_factory=DashboardConfig)
     cloud: CloudConfig = Field(default_factory=CloudConfig)
+    intent: IntentConfig = Field(default_factory=IntentConfig)
     openclaw: OpenClawConfig = Field(default_factory=OpenClawConfig)
     file_monitor: FileMonitorConfig = Field(default_factory=FileMonitorConfig)
     local_scan: LocalScanConfig = Field(default_factory=LocalScanConfig)
@@ -231,6 +238,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
         "audit": settings.audit.model_dump(mode="json"),
         "dashboard": settings.dashboard.model_dump(mode="json"),
         "cloud": settings.cloud.model_dump(mode="json"),
+        "intent": settings.intent.model_dump(mode="json"),
         "openclaw": settings.openclaw.model_dump(mode="json"),
         "file_monitor": settings.file_monitor.model_dump(mode="json"),
         "local_scan": settings.local_scan.model_dump(mode="json"),

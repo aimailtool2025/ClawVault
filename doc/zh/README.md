@@ -18,6 +18,7 @@
 | [architecture.md](./architecture.md) | 系统架构与模块设计 |
 | [scenarios.md](./scenarios.md) | 使用场景与路线图 |
 | [GUARD_MODE.md](./GUARD_MODE.md) | 安全模式：strict / interactive / permissive |
+| [INTENT_GUARD.md](./INTENT_GUARD.md) | 意图识别攻击防护（响应方向 ToolCall 越界检测） |
 
 ## 生成式规则文档
 

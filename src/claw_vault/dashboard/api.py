@@ -67,6 +67,9 @@ _analysis_log: list[dict] = []
 _security_events: list[dict] = []
 """Security event timeline. Max 100 entries."""
 
+_intent_events: list[dict] = []
+"""意图防护事件列表。Max 200 entries."""
+
 _file_monitor_events: list[dict] = []
 """File monitor events ring buffer. Max 200 entries."""
 
@@ -962,6 +965,7 @@ def push_proxy_event(record, scan=None, request_body=None) -> None:
         "tool_calls": tool_calls,
         "tool_call_count": tool_call_count,
         "message_count": message_count,
+        "intent_violations": [],  # 由响应拦截填充
     }
     _scan_history.insert(0, entry)
     if len(_scan_history) > 500:
@@ -2108,4 +2112,150 @@ async def get_active_vault():
                 active = preset.id
                 break
     return {"active_preset_id": active}
+
+
+# --------------- 意图防护 API ---------------
+
+@router.get("/intent/status")
+async def get_intent_status():
+    """返回意图防护状态。"""
+    if not _settings:
+        return {"enabled": True, "guard_mode": "permissive", "event_count": len(_intent_events)}
+    return {
+        "enabled": _settings.intent.enabled,
+        "guard_mode": _settings.intent.guard_mode,
+        "event_count": len(_intent_events),
+    }
+
+
+@router.post("/intent/config")
+async def update_intent_config(body: dict):
+    """更新意图防护配置。"""
+    global _settings
+    if not _settings:
+        return {"ok": False, "error": "settings not loaded"}
+
+    enabled = body.get("enabled", _settings.intent.enabled)
+    guard_mode = body.get("guard_mode", _settings.intent.guard_mode)
+
+    if guard_mode not in ("permissive", "interactive", "strict"):
+        return {"ok": False, "error": "invalid guard_mode"}
+
+    _settings.intent.enabled = enabled
+    _settings.intent.guard_mode = guard_mode
+
+    # 同步到在线 interceptor
+    if _proxy_server and hasattr(_proxy_server, "addon"):
+        _proxy_server.addon.intent_enabled = enabled
+        _proxy_server.addon.intent_guard_mode = guard_mode
+
+    from claw_vault.config import save_settings
+    save_settings(_settings)
+    return {"ok": True}
+
+
+@router.get("/intent/events")
+async def get_intent_events():
+    """返回意图防护事件列表。"""
+    return {"events": _intent_events[:100], "total": len(_intent_events)}
+
+
+@router.post("/intent/test")
+async def test_intent_detection(body: dict):
+    """测试意图识别检测（用于 demo）。
+
+    接收模拟的 AI 响应和用户文本，返回检测结果。
+    """
+    from claw_vault.detector.intent import analyze_response
+
+    response_body = body.get("response", {})
+    user_text = body.get("user_text", "")
+
+    violations = analyze_response(response_body, user_text)
+
+    result = {
+        "user_intent": violations[0].user_intent if violations else "UNKNOWN",
+        "violation_count": len(violations),
+        "violations": [
+            {
+                "tool_name": v.tool_name,
+                "tool_intent": v.tool_intent.value,
+                "user_intent": v.user_intent,
+                "is_compatible": v.is_compatible,
+                "risk_score": v.risk_score,
+                "risk_level": v.risk_level,
+                "drift_indicator": v.drift_indicator,
+                "decision": v.decision,
+                "reason": v.reason,
+                "tool_cmd": getattr(v, "tool_cmd", ""),
+                "user_prompt": getattr(v, "user_prompt", ""),
+                "tool_arguments": getattr(v, "tool_arguments", {}),
+            }
+            for v in violations
+        ],
+    }
+
+    # 记录到事件列表
+    if violations:
+        import datetime as _dt
+        now_ts = _dt.datetime.utcnow().isoformat() + "Z"
+        _intent_events.insert(0, {
+            "id": str(uuid.uuid4()),
+            "ts": now_ts,
+            "source": "test",
+            "user_intent": result["user_intent"],
+            "violations": result["violations"],
+            "violation_count": len(violations),
+        })
+        if len(_intent_events) > 200:
+            _intent_events.pop()
+
+    return result
+
+
+def push_intent_event(violations: list, user_intent: str, guard_mode: str = "permissive") -> None:
+    """将意图违规事件推送到仪表盘（由 interceptor 调用）。"""
+    if not violations:
+        return
+    import datetime as _dt
+    now_ts = _dt.datetime.utcnow().isoformat() + "Z"
+    event = {
+        "id": str(uuid.uuid4()),
+        "ts": now_ts,
+        "source": "proxy",
+        "user_intent": user_intent,
+        "guard_mode": guard_mode,
+        "violation_count": len(violations),
+        "violations": [
+            {
+                "tool_name": v.tool_name,
+                "tool_intent": v.tool_intent.value,
+                "is_compatible": v.is_compatible,
+                "risk_score": v.risk_score,
+                "risk_level": v.risk_level,
+                "drift_indicator": v.drift_indicator,
+                "decision": v.decision,
+                "reason": v.reason,
+                "tool_cmd": getattr(v, "tool_cmd", ""),
+                "user_prompt": getattr(v, "user_prompt", ""),
+                "tool_arguments": getattr(v, "tool_arguments", {}),
+            }
+            for v in violations
+        ],
+    }
+    _intent_events.insert(0, event)
+    if len(_intent_events) > 200:
+        _intent_events.pop()
+
+    # 同时添加到安全事件
+    max_risk = max(v.risk_score for v in violations)
+    severity = "high" if max_risk >= 0.8 else "medium" if max_risk >= 0.5 else "low"
+    _security_events.insert(0, {
+        "ts": now_ts,
+        "type": "intent_violation",
+        "severity": severity,
+        "summary": f"意图越界: {violations[0].tool_name} ({violations[0].tool_intent.value}) - 用户意图={user_intent}",
+    })
+    if len(_security_events) > 100:
+        _security_events.pop()
 
