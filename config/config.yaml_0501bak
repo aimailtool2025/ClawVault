@@ -1,0 +1,435 @@
+proxy:
+  host: 0.0.0.0
+  port: 8765
+  ssl_verify: false
+  traffic_log_enabled: true
+  traffic_log_path: /home/ubuntu/.ClawVault/data/proxy_traffic.jsonl
+  intercept_hosts:
+  - api.openai.com
+  - api.anthropic.com
+  - api.siliconflow.cn
+  - '*.openai.azure.com'
+  - generativelanguage.googleapis.com
+  - api.minimaxi.com
+detection:
+  enabled: true
+  api_keys: true
+  aws_credentials: true
+  blockchain: true
+  passwords: true
+  private_ips: true
+  pii: true
+  jwt_tokens: true
+  ssh_keys: true
+  credit_cards: true
+  emails: true
+  generic_secrets: true
+  dangerous_commands: true
+  prompt_injection: true
+  custom_patterns: []
+guard:
+  mode: permissive
+  auto_sanitize: false
+  blocked_domains: []
+monitor:
+  daily_token_budget: 50000
+  monthly_token_budget: 1000000
+  cost_alert_usd: 50.0
+audit:
+  retention_days: 7
+  log_level: INFO
+  export_format: json
+dashboard:
+  enabled: true
+  host: 0.0.0.0
+  port: 8766
+cloud:
+  enabled: false
+  aiscc_api_url: https://api.aiscc.io/v1/audit
+  aiscc_api_key: ''
+intent:
+  enabled: true
+  guard_mode: strict
+openclaw:
+  session_redaction:
+    enabled: true
+    sessions_root: ~/.openclaw/agents
+    additional_sessions_roots: []
+    auto_discover_sessions_roots: true
+    state_file: ~/.ClawVault/state/openclaw_session_redactor.json
+    lock_timeout_ms: 3000
+    watch_debounce_ms: 250
+    watch_step_ms: 50
+    processing_retries: 3
+file_monitor:
+  enabled: true
+  watch_home_sensitive: true
+  watch_project_sensitive: true
+  watch_paths: []
+  watch_patterns:
+  - .env
+  - .env.*
+  - '*.pem'
+  - '*.key'
+  - '*.p12'
+  - '*.pfx'
+  - secrets.yaml
+  - secrets.json
+  - credentials.json
+  - service-account*.json
+  - id_rsa
+  - id_ed25519
+  scan_content_on_change: true
+  max_file_size_kb: 512
+  watch_debounce_ms: 500
+  watch_step_ms: 100
+  alert_on_delete: true
+  alert_on_create: true
+  alert_on_modify: true
+  alert_on_access: false
+  access_debounce_seconds: 5
+local_scan:
+  enabled: true
+  default_scan_paths:
+  - /home/ubuntu
+  max_files_per_scan: 200
+  max_file_size_kb: 1024
+  skip_dirs:
+  - node_modules
+  - .git
+  - venv
+  - __pycache__
+  - .venv
+  - .cache
+  scan_file_patterns:
+  - '*.env'
+  - '*.env.*'
+  - '*.yaml'
+  - '*.yml'
+  - '*.json'
+  - '*.toml'
+  - '*.ini'
+  - '*.cfg'
+  - '*.conf'
+  - '*.properties'
+  - '*.pem'
+  - '*.key'
+  schedules: []
+  history_max: 100
+rules: []
+agents:
+  version: '1.0'
+  entries: {}
+vaults:
+  version: '1.0'
+  presets:
+  - id: file-protection
+    name: File Protection
+    description: 'Monitor and protect sensitive files: .env, keys, certificates, secrets'
+    icon: 📁
+    builtin: true
+    created_at: '2026-04-28T10:27:36.819457'
+    detection:
+      enabled: true
+      api_keys: true
+      passwords: true
+      private_ips: false
+      pii: false
+      jwt_tokens: false
+      ssh_keys: true
+      credit_cards: false
+      emails: false
+      generic_secrets: true
+      dangerous_commands: false
+      prompt_injection: false
+      aws_credentials: true
+      blockchain: false
+      custom_patterns: []
+    guard:
+      mode: strict
+      auto_sanitize: true
+      blocked_domains: []
+    file_monitor:
+      enabled: true
+      watch_home_sensitive: true
+      watch_paths: []
+      watch_patterns:
+      - .env
+      - .env.*
+      - '*.pem'
+      - '*.key'
+      - '*.p12'
+      - '*.pfx'
+      - '*.crt'
+      - '*.cer'
+      - secrets.yaml
+      - secrets.json
+      - credentials.json
+      - service-account*.json
+      - id_rsa
+      - id_ed25519
+      scan_content_on_change: true
+      max_file_size_kb: 1024
+      watch_debounce_ms: 500
+      watch_step_ms: 100
+      alert_on_delete: true
+      alert_on_create: true
+      alert_on_modify: true
+      alert_on_access: false
+      access_debounce_seconds: 5
+    rules:
+    - id: block-leaked-keys
+      name: Block leaked API keys in files
+      enabled: true
+      action: block
+      when:
+        has_sensitive: true
+        min_risk_score: 7
+  - id: photo-protection
+    name: Photo & Media Protection
+    description: Prevent exposure of image metadata, GPS locations, and personal media
+      paths
+    icon: 📷
+    builtin: true
+    created_at: '2026-04-28T10:27:36.819457'
+    detection:
+      enabled: true
+      api_keys: false
+      passwords: false
+      private_ips: true
+      pii: true
+      jwt_tokens: false
+      ssh_keys: false
+      credit_cards: false
+      emails: true
+      generic_secrets: false
+      dangerous_commands: false
+      prompt_injection: true
+      aws_credentials: false
+      blockchain: false
+      custom_patterns: []
+    guard:
+      mode: interactive
+      auto_sanitize: true
+      blocked_domains: []
+    file_monitor:
+      enabled: true
+      watch_home_sensitive: false
+      watch_paths: []
+      watch_patterns:
+      - '*.jpg'
+      - '*.jpeg'
+      - '*.png'
+      - '*.heic'
+      - '*.raw'
+      - '*.exif'
+      - '*.tiff'
+      scan_content_on_change: false
+      max_file_size_kb: 256
+      watch_debounce_ms: 500
+      watch_step_ms: 100
+      alert_on_delete: true
+      alert_on_create: true
+      alert_on_modify: true
+      alert_on_access: false
+      access_debounce_seconds: 5
+    rules:
+    - id: block-pii-in-media
+      name: Block PII exposure in media context
+      enabled: true
+      action: block
+      when:
+        has_sensitive: true
+        pattern_types:
+        - pii
+        - email
+  - id: account-secrets
+    name: Account & Secret Protection
+    description: Guard API keys, passwords, tokens, and cloud credentials from leaking
+    icon: 🔐
+    builtin: true
+    created_at: '2026-04-28T10:27:36.819457'
+    detection:
+      enabled: true
+      api_keys: true
+      passwords: true
+      private_ips: false
+      pii: false
+      jwt_tokens: true
+      ssh_keys: true
+      credit_cards: true
+      emails: false
+      generic_secrets: true
+      dangerous_commands: false
+      prompt_injection: false
+      aws_credentials: true
+      blockchain: true
+      custom_patterns: []
+    guard:
+      mode: strict
+      auto_sanitize: true
+      blocked_domains: []
+    file_monitor:
+      enabled: true
+      watch_home_sensitive: true
+      watch_paths: []
+      watch_patterns:
+      - .env
+      - .env.*
+      - '*.key'
+      - '*.pem'
+      - credentials.json
+      - service-account*.json
+      - .npmrc
+      - .pypirc
+      - .docker/config.json
+      scan_content_on_change: true
+      max_file_size_kb: 512
+      watch_debounce_ms: 500
+      watch_step_ms: 100
+      alert_on_delete: true
+      alert_on_create: true
+      alert_on_modify: true
+      alert_on_access: false
+      access_debounce_seconds: 5
+    rules:
+    - id: block-all-credentials
+      name: Block all credential leaks
+      enabled: true
+      action: block
+      when:
+        has_sensitive: true
+    - id: block-injections
+      name: Block prompt injections
+      enabled: true
+      action: block
+      when:
+        has_injections: true
+  - id: privacy-shield
+    name: Privacy Shield
+    description: 'Protect personal identity: PII, emails, phone numbers, addresses,
+      IDs'
+    icon: 🛡️
+    builtin: true
+    created_at: '2026-04-28T10:27:36.819457'
+    detection:
+      enabled: true
+      api_keys: false
+      passwords: false
+      private_ips: true
+      pii: true
+      jwt_tokens: false
+      ssh_keys: false
+      credit_cards: true
+      emails: true
+      generic_secrets: false
+      dangerous_commands: false
+      prompt_injection: true
+      aws_credentials: false
+      blockchain: false
+      custom_patterns: []
+    guard:
+      mode: interactive
+      auto_sanitize: true
+      blocked_domains: []
+    file_monitor:
+      enabled: false
+      watch_home_sensitive: false
+      watch_paths: []
+      watch_patterns:
+      - .env
+      scan_content_on_change: true
+      max_file_size_kb: 512
+      watch_debounce_ms: 500
+      watch_step_ms: 100
+      alert_on_delete: false
+      alert_on_create: false
+      alert_on_modify: false
+      alert_on_access: false
+      access_debounce_seconds: 5
+    rules:
+    - id: sanitize-pii
+      name: Auto-sanitize personal data
+      enabled: true
+      action: sanitize
+      when:
+        has_sensitive: true
+        pattern_types:
+        - pii
+        - credit_card
+        - email
+  - id: full-lockdown
+    name: Full Lockdown
+    description: 'Maximum protection: block all threats, monitor all files, strict
+      mode'
+    icon: 🔒
+    builtin: true
+    created_at: '2026-04-28T10:27:36.819457'
+    detection:
+      enabled: true
+      api_keys: true
+      passwords: true
+      private_ips: true
+      pii: true
+      jwt_tokens: true
+      ssh_keys: true
+      credit_cards: true
+      emails: true
+      generic_secrets: true
+      dangerous_commands: true
+      prompt_injection: true
+      aws_credentials: true
+      blockchain: true
+      custom_patterns: []
+    guard:
+      mode: strict
+      auto_sanitize: true
+      blocked_domains: []
+    file_monitor:
+      enabled: true
+      watch_home_sensitive: true
+      watch_paths: []
+      watch_patterns:
+      - .env
+      - .env.*
+      - '*.pem'
+      - '*.key'
+      - '*.p12'
+      - '*.pfx'
+      - '*.crt'
+      - '*.cer'
+      - secrets.yaml
+      - secrets.json
+      - credentials.json
+      - service-account*.json
+      - id_rsa
+      - id_ed25519
+      scan_content_on_change: true
+      max_file_size_kb: 512
+      watch_debounce_ms: 500
+      watch_step_ms: 100
+      alert_on_delete: true
+      alert_on_create: true
+      alert_on_modify: true
+      alert_on_access: false
+      access_debounce_seconds: 5
+    rules:
+    - id: block-all-sensitive
+      name: Block all sensitive data
+      enabled: true
+      action: block
+      when:
+        has_sensitive: true
+    - id: block-all-injections
+      name: Block all injections
+      enabled: true
+      action: block
+      when:
+        has_injections: true
+    - id: block-all-commands
+      name: Block all dangerous commands
+      enabled: true
+      action: block
+      when:
+        has_commands: true
+  active_preset_id: null
