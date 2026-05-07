@@ -91,10 +91,21 @@ class CloudConfig(BaseModel):
     aiscc_api_key: str = ""
 
 
+class IntentLLMConfig(BaseModel):
+    """意图防护 LLM 二次判别配置。"""
+    enabled: bool = False           # 默认关闭，需手动开启
+    api_url: str = ""               # OpenAI 兼容 API 地址
+    api_key: str = ""               # API Key
+    model: str = "gpt-4o-mini"      # 使用的模型
+    timeout: float = 10.0           # 超时秒数
+    min_risk_for_llm: str = "MEDIUM"  # 触发 LLM 的最低风险等级
+
+
 class IntentConfig(BaseModel):
     """意图识别攻击防护配置。"""
     enabled: bool = True
     guard_mode: str = "permissive"  # permissive | interactive | strict
+    llm: IntentLLMConfig = Field(default_factory=IntentLLMConfig)
 
 
 class OpenClawSessionRedactionConfig(BaseModel):

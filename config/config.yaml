@@ -47,6 +47,16 @@ cloud:
   enabled: false
   aiscc_api_url: https://api.aiscc.io/v1/audit
   aiscc_api_key: ''
+intent:
+  enabled: true
+  guard_mode: permissive
+  llm:
+    enabled: false
+    api_url: ''
+    api_key: ''
+    model: gpt-4o-mini
+    timeout: 10.0
+    min_risk_for_llm: MEDIUM
 openclaw:
   session_redaction:
     enabled: true

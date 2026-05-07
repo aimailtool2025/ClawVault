@@ -12,8 +12,11 @@ LOCAL_BASE="$(cd "$(dirname "$0")/.." && pwd)"
 FILES=(
     "src/claw_vault/proxy/interceptor.py"
     "src/claw_vault/detector/intent.py"
+    "src/claw_vault/detector/intent_llm.py"
+    "src/claw_vault/config.py"
     "src/claw_vault/dashboard/api.py"
     "src/claw_vault/dashboard/static/index.html"
+    "config/config.yaml"
 )
 
 echo "=== ClawVault Deploy ==="

@@ -2120,11 +2120,21 @@ async def get_active_vault():
 async def get_intent_status():
     """返回意图防护状态。"""
     if not _settings:
-        return {"enabled": True, "guard_mode": "permissive", "event_count": len(_intent_events)}
+        return {"enabled": True, "guard_mode": "permissive", "event_count": len(_intent_events),
+                "llm": {"enabled": False, "api_url": "", "model": "gpt-4o-mini",
+                         "timeout": 10.0, "min_risk_for_llm": "MEDIUM"}}
     return {
         "enabled": _settings.intent.enabled,
         "guard_mode": _settings.intent.guard_mode,
         "event_count": len(_intent_events),
+        "llm": {
+            "enabled": _settings.intent.llm.enabled,
+            "api_url": _settings.intent.llm.api_url,
+            "model": _settings.intent.llm.model,
+            "timeout": _settings.intent.llm.timeout,
+            "min_risk_for_llm": _settings.intent.llm.min_risk_for_llm,
+            "has_key": bool(_settings.intent.llm.api_key),
+        },
     }
 
 
@@ -2143,6 +2153,21 @@ async def update_intent_config(body: dict):
 
     _settings.intent.enabled = enabled
     _settings.intent.guard_mode = guard_mode
+
+    # LLM 二次判别配置
+    llm = body.get("llm")
+    if isinstance(llm, dict):
+        _settings.intent.llm.enabled = bool(llm.get("enabled", _settings.intent.llm.enabled))
+        if llm.get("api_url") is not None:
+            _settings.intent.llm.api_url = str(llm["api_url"])
+        if llm.get("api_key") is not None:
+            _settings.intent.llm.api_key = str(llm["api_key"])
+        if llm.get("model") is not None:
+            _settings.intent.llm.model = str(llm["model"])
+        if llm.get("timeout") is not None:
+            _settings.intent.llm.timeout = float(llm["timeout"])
+        if llm.get("min_risk_for_llm") is not None:
+            _settings.intent.llm.min_risk_for_llm = str(llm["min_risk_for_llm"])
 
     # 同步到在线 interceptor
     if _proxy_server and hasattr(_proxy_server, "addon"):
@@ -2239,6 +2264,10 @@ def push_intent_event(violations: list, user_intent: str, guard_mode: str = "per
                 "tool_cmd": getattr(v, "tool_cmd", ""),
                 "user_prompt": getattr(v, "user_prompt", ""),
                 "tool_arguments": getattr(v, "tool_arguments", {}),
+                "llm_verdict": getattr(v, "llm_verdict", ""),
+                "llm_reason": getattr(v, "llm_reason", ""),
+                "llm_confidence": getattr(v, "llm_confidence", 0.0),
+                "llm_raw_response": getattr(v, "llm_raw_response", ""),
             }
             for v in violations
         ],

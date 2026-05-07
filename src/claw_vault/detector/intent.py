@@ -68,11 +68,15 @@ class IntentViolation:
     risk_score: float
     risk_level: str  # LOW / MEDIUM / HIGH / CRITICAL
     drift_indicator: float
-    decision: str  # ALLOW / CONFIRM / BLOCK
+    decision: str  # ALLOW / CONFIRM / BLOCK / LOGGED
     reason: str
     tool_arguments: dict[str, Any] = field(default_factory=dict)
     tool_cmd: str = ""  # exec/bash 类工具的实际命令
     user_prompt: str = ""  # 用户的原始指令文本
+    llm_verdict: str = ""        # LLM 判定结果 (ALLOW/CONFIRM/BLOCK)
+    llm_reason: str = ""         # LLM 判断理由
+    llm_confidence: float = 0.0  # LLM 置信度
+    llm_raw_response: str = ""   # LLM 原始输出
 
 
 # ---------------------------------------------------------------------------
@@ -915,11 +919,86 @@ def analyze_response(
             ))
 
     if violations:
+        # --- LLM 二次判别（新增） ---
+        violations = _llm_review_violations(violations, user_text)
+
         logger.info(
             "intent_violations_detected",
             user_intent=user_intent,
             violation_count=len(violations),
-            max_risk=max(v.risk_score for v in violations),
+            max_risk=max(v.risk_score for v in violations) if violations else 0,
         )
 
     return violations
+
+
+def _llm_review_violations(
+    violations: list[IntentViolation],
+    user_text: str,
+) -> list[IntentViolation]:
+    """对规则评分产生的违规进行 LLM 二次判别。
+
+    仅在 LLM 配置启用且有可用 API 时触发。
+    LLM 判定 ALLOW 且置信度 >= 0.7 时，降级为放行（纠正规则误报）。
+    """
+    # 实时读取配置文件（API 保存后会刷新生效）
+    try:
+        from claw_vault.config import load_settings
+        live_settings = load_settings()
+        llm_cfg = live_settings.intent.llm
+    except Exception:
+        return violations
+
+    if not llm_cfg.enabled or not llm_cfg.api_url or not llm_cfg.api_key:
+        return violations
+
+    from claw_vault.detector.intent_llm import judge_toolcall_sync, should_trigger_llm
+
+    remaining: list[IntentViolation] = []
+    for v in violations:
+        # 检查风险等级是否达到 LLM 触发阈值
+        if not should_trigger_llm(v.risk_level, llm_cfg.min_risk_for_llm):
+            remaining.append(v)
+            continue
+
+        verdict = judge_toolcall_sync(
+            user_text=user_text,
+            tool_name=v.tool_name,
+            tool_args=v.tool_arguments,
+            tool_cmd=v.tool_cmd,
+            rule_decision=v.decision,
+            rule_reason=v.reason,
+            risk_score=v.risk_score,
+            api_url=llm_cfg.api_url,
+            api_key=llm_cfg.api_key,
+            model=llm_cfg.model,
+            timeout=llm_cfg.timeout,
+        )
+
+        if verdict is None:
+            # LLM 调用失败，维持规则评分结果
+            remaining.append(v)
+            continue
+
+        # 记录 LLM 判定结果
+        v.llm_verdict = verdict.decision
+        v.llm_reason = verdict.reason
+        v.llm_confidence = verdict.confidence
+        v.llm_raw_response = verdict.raw_response[:1000]  # 保留原始输出（截断）
+
+        if verdict.decision == "ALLOW" and verdict.confidence >= 0.7:
+            # LLM 纠正：规则误报，降级为放行
+            logger.warning(
+                "llm_judge_overridden",
+                tool_name=v.tool_name,
+                rule_decision=v.decision,
+                llm_decision="ALLOW",
+                confidence=verdict.confidence,
+            )
+            # 不加入 remaining → 该违规被移除
+        else:
+            # LLM 维持或加重，补充理由
+            v.reason = f"{v.reason} | [LLM确认] {verdict.reason}"
+            remaining.append(v)
+
+    return remaining

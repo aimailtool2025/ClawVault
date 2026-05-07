@@ -548,6 +548,47 @@
                                 <p id="intent-mode-desc" class="text-xs text-gray-600 mt-1.5">Violations are logged but no action is taken.</p>
                             </div>
 
+                            <!-- LLM Judge Toggle -->
+                            <div class="flex items-center justify-between pt-2 border-t border-gray-800/50">
+                                <div>
+                                    <div class="text-sm text-gray-200">LLM Secondary Judge</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">Use LLM to verify high-risk violations and reduce false positives</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="intent-cfg-llm-enabled" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-vault-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- LLM API URL -->
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">API URL</label>
+                                <input type="text" id="intent-cfg-llm-url" class="w-full bg-surface-800 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-1 focus:ring-vault-500 focus:border-vault-500" placeholder="https://api.openai.com/v1/chat/completions">
+                            </div>
+
+                            <!-- LLM API Key -->
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">API Key</label>
+                                <input type="password" id="intent-cfg-llm-key" class="w-full bg-surface-800 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-1 focus:ring-vault-500 focus:border-vault-500" placeholder="sk-...">
+                                <p id="intent-cfg-llm-key-hint" class="text-xs text-gray-600 mt-1 hidden">Key already configured</p>
+                            </div>
+
+                            <!-- LLM Model & Min Risk -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Model</label>
+                                    <input type="text" id="intent-cfg-llm-model" class="w-full bg-surface-800 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-1 focus:ring-vault-500 focus:border-vault-500" placeholder="gpt-4o-mini">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Min Risk Level</label>
+                                    <select id="intent-cfg-llm-risk" class="w-full bg-surface-800 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-1 focus:ring-vault-500 focus:border-vault-500">
+                                        <option value="MEDIUM">MEDIUM</option>
+                                        <option value="HIGH">HIGH</option>
+                                        <option value="CRITICAL">CRITICAL</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <!-- Save Button -->
                             <button onclick="saveIntentConfig()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors">
                                 Save Configuration
@@ -2990,43 +3031,63 @@ function loadAttackCases() {
 			    }]
 			};
 
-			async function loadIntentStatus() {
-			    const status = await api('/intent/status');
-			    if (!status) return;
-
-			    const dot = document.getElementById('intent-status-dot');
-			    const text = document.getElementById('intent-status-text');
-			    const modeBadge = document.getElementById('intent-mode-badge');
-			    const eventCount = document.getElementById('intent-event-count');
-
-			    if (status.enabled) {
-			        dot.className = 'w-3 h-3 bg-vault-500 rounded-full pulse-dot';
-			        text.className = 'text-sm font-semibold text-vault-400';
-			        text.textContent = 'Active';
-			    } else {
-			        dot.className = 'w-3 h-3 bg-gray-500 rounded-full';
-			        text.className = 'text-sm font-semibold text-gray-400';
-			        text.textContent = 'Disabled';
-			    }
-
-			    const mode = status.guard_mode || 'permissive';
-			    const modeColors = {
-			        strict: 'bg-red-500/10 text-red-400',
-			        interactive: 'bg-yellow-500/10 text-yellow-400',
-			        permissive: 'bg-green-500/10 text-green-400',
-			    };
-			    modeBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ' + (modeColors[mode] || modeColors.permissive);
-			    modeBadge.textContent = mode;
-
-			    eventCount.textContent = status.event_count || 0;
-
-			    // 同步配置区
-			    const enabledEl = document.getElementById('intent-cfg-enabled');
-			    const modeEl = document.getElementById('intent-cfg-mode');
-			    if (enabledEl) enabledEl.checked = status.enabled !== false;
-			    if (modeEl) modeEl.value = mode;
-			    updateIntentModeDesc(mode);
-			}
+				async function loadIntentStatus() {
+				    const status = await api("/intent/status");
+				    if (!status) return;
+				
+				    const dot = document.getElementById("intent-status-dot");
+				    const text = document.getElementById("intent-status-text");
+				    const modeBadge = document.getElementById("intent-mode-badge");
+				    const eventCount = document.getElementById("intent-event-count");
+				
+				    if (status.enabled) {
+				        dot.className = "w-3 h-3 bg-vault-500 rounded-full pulse-dot";
+				        text.className = "text-sm font-semibold text-vault-400";
+				        text.textContent = "Active";
+				    } else {
+				        dot.className = "w-3 h-3 bg-gray-500 rounded-full";
+				        text.className = "text-sm font-semibold text-gray-400";
+				        text.textContent = "Disabled";
+				    }
+				
+				    const mode = status.guard_mode || "permissive";
+				    const modeColors = {
+				        strict: "bg-red-500/10 text-red-400",
+				        interactive: "bg-yellow-500/10 text-yellow-400",
+				        permissive: "bg-green-500/10 text-green-400",
+				    };
+				    modeBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium " + (modeColors[mode] || modeColors.permissive);
+				    modeBadge.textContent = mode;
+				
+				    eventCount.textContent = status.event_count || 0;
+				
+				    // 同步配置区
+				    const enabledEl = document.getElementById("intent-cfg-enabled");
+				    const modeEl = document.getElementById("intent-cfg-mode");
+				    if (enabledEl) enabledEl.checked = status.enabled !== false;
+				    if (modeEl) modeEl.value = mode;
+				    updateIntentModeDesc(mode);
+				
+				    // 同步 LLM 配置
+				    const llm = status.llm || {};
+				    const llmEnabledEl = document.getElementById("intent-cfg-llm-enabled");
+				    const llmUrlEl = document.getElementById("intent-cfg-llm-url");
+				    const llmModelEl = document.getElementById("intent-cfg-llm-model");
+				    const llmRiskEl = document.getElementById("intent-cfg-llm-risk");
+				    const llmKeyHint = document.getElementById("intent-cfg-llm-key-hint");
+				    if (llmEnabledEl) llmEnabledEl.checked = llm.enabled === true;
+				    if (llmUrlEl) llmUrlEl.value = llm.api_url || "";
+				    if (llmModelEl) llmModelEl.value = llm.model || "gpt-4o-mini";
+				    if (llmRiskEl) llmRiskEl.value = llm.min_risk_for_llm || "MEDIUM";
+				    if (llmKeyHint) {
+				        if (llm.has_key) {
+				            llmKeyHint.classList.remove("hidden");
+				            llmKeyHint.textContent = "Key already configured (leave empty to keep)";
+				        } else {
+				            llmKeyHint.classList.add("hidden");
+				        }
+				    }
+				}
 
 			function updateIntentModeDesc(mode) {
 			    const desc = document.getElementById('intent-mode-desc');
@@ -3171,20 +3232,35 @@ function loadAttackCases() {
 				    </div>`;
 				}
 
-			async function saveIntentConfig() {
-			    const enabled = document.getElementById('intent-cfg-enabled')?.checked ?? true;
-			    const guard_mode = document.getElementById('intent-cfg-mode')?.value || 'permissive';
-
-			    const result = await api('/intent/config', {
-			        method: 'POST',
-			        body: JSON.stringify({ enabled, guard_mode }),
-			    });
-
-			    if (result) {
-			        await loadIntentStatus();
-			        await loadIntentEvents();
-			    }
-			}
+				async function saveIntentConfig() {
+				    const enabled = document.getElementById("intent-cfg-enabled")?.checked ?? true;
+				    const guard_mode = document.getElementById("intent-cfg-mode")?.value || "permissive";
+				    const llm_enabled = document.getElementById("intent-cfg-llm-enabled")?.checked ?? false;
+				    const llm_url = document.getElementById("intent-cfg-llm-url")?.value?.trim() || "";
+				    const llm_key = document.getElementById("intent-cfg-llm-key")?.value?.trim() || "";
+				    const llm_model = document.getElementById("intent-cfg-llm-model")?.value?.trim() || "gpt-4o-mini";
+				    const min_risk = document.getElementById("intent-cfg-llm-risk")?.value || "MEDIUM";
+				
+				    const result = await api("/intent/config", {
+				        method: "POST",
+				        body: JSON.stringify({
+				            enabled,
+				            guard_mode,
+				            llm: {
+				                enabled: llm_enabled,
+				                api_url: llm_url,
+				                api_key: llm_key,
+				                model: llm_model,
+				                min_risk_for_llm: min_risk,
+				            },
+				        }),
+				    });
+				
+				    if (result) {
+				        await loadIntentStatus();
+				        await loadIntentEvents();
+				    }
+				}
 
 			async function runIntentTest() {
 			    const userInstruction = document.getElementById('intent-test-input')?.value?.trim();
