@@ -869,6 +869,8 @@ def analyze_response(
     user_intent = infer_user_intent(user_text)
 
     violations: list[IntentViolation] = []
+    # 追踪规则判定 ALLOW 的 ToolCall，稍后决定是否需要 LLM 审查
+    allow_candidates: list[tuple[ToolCallInfo, CommandIntent, bool, float, float, str, str, dict[str, float]]] = []
 
     for tc in tool_calls:
         # 分类工具意图
@@ -917,11 +919,21 @@ def analyze_response(
                 tool_cmd=tool_cmd,
                 user_prompt=user_text[:500],
             ))
+        elif decision == "ALLOW":
+            # 记录 ALLOW 结果，稍后可能需要 LLM 审查
+            allow_candidates.append((tc, tool_intent, is_compatible, drift, risk_score, risk_level, reason, dimensions))
 
+    # --- LLM 二次判别（已有：减少误报） ---
     if violations:
-        # --- LLM 二次判别（新增） ---
         violations = _llm_review_violations(violations, user_text)
 
+    # --- LLM 漏报审查（新增：减少漏报） ---
+    if allow_candidates:
+        new_violations = _llm_review_allowed(allow_candidates, user_text, user_intent)
+        if new_violations:
+            violations.extend(new_violations)
+
+    if violations:
         logger.info(
             "intent_violations_detected",
             user_intent=user_intent,
@@ -930,6 +942,139 @@ def analyze_response(
         )
 
     return violations
+
+
+# ---------------------------------------------------------------------------
+# 7. LLM 漏报审查 — 对规则判定 ALLOW 的可疑 ToolCall 进行 LLM 审查
+# ---------------------------------------------------------------------------
+
+# 高危工具类型：即使规则判定 ALLOW，也需要 LLM 审查
+_HIGH_RISK_TOOLS = frozenset({
+    "exec", "bash", "shell", "execute", "run_command", "run",
+    "command", "terminal", "subprocess", "cmd", "powershell",
+})
+
+# 灰区风险分数范围：接近阈值但未触发规则
+_GRAY_ZONE_MIN = 0.15
+_GRAY_ZONE_MAX = 0.30
+
+
+def _should_llm_review_allow(
+    tc: ToolCallInfo,
+    tool_intent: CommandIntent,
+    risk_score: float,
+    user_intent: str,
+) -> bool:
+    """判断规则判定 ALLOW 的 ToolCall 是否需要 LLM 审查（减少漏报）。
+
+    触发条件（任一满足）：
+    1. 高危工具类型（exec/bash/shell 等）
+    2. 灰区风险分数（接近阈值但未触发）
+    3. 用户意图 UNKNOWN（兼容矩阵过于宽松）
+    4. 工具意图 UNKNOWN（未能分类，可能是新型攻击）
+    """
+    # 1. 高危工具类型 → 必须审查
+    if tc.tool_name.lower() in _HIGH_RISK_TOOLS:
+        return True
+    # 2. 灰区风险分数
+    if _GRAY_ZONE_MIN <= risk_score < _GRAY_ZONE_MAX:
+        return True
+    # 3. 用户意图 UNKNOWN
+    if user_intent == "UNKNOWN":
+        return True
+    # 4. 工具意图 UNKNOWN
+    if tool_intent == CommandIntent.UNKNOWN:
+        return True
+    return False
+
+
+def _llm_review_allowed(
+    candidates: list[tuple[ToolCallInfo, CommandIntent, bool, float, float, str, str, dict[str, float]]],
+    user_text: str,
+    user_intent: str,
+) -> list[IntentViolation]:
+    """对规则判定 ALLOW 但可疑的 ToolCall 调用 LLM 审查，捕获漏报。"""
+    # 读取配置
+    try:
+        from claw_vault.config import load_settings
+        live_settings = load_settings()
+        llm_cfg = live_settings.intent.llm
+    except Exception:
+        return []
+
+    if not llm_cfg.enabled or not llm_cfg.review_allow or not llm_cfg.api_url or not llm_cfg.api_key:
+        return []
+
+    from claw_vault.detector.intent_llm import judge_toolcall_sync
+
+    new_violations: list[IntentViolation] = []
+
+    for (tc, tool_intent, is_compatible, drift, risk_score, risk_level, reason, dimensions) in candidates:
+        if not _should_llm_review_allow(tc, tool_intent, risk_score, user_intent):
+            continue
+
+        # 提取 exec/bash 类工具的实际命令
+        tool_cmd = ""
+        cmd_arg = tc.arguments.get("command", "")
+        if isinstance(cmd_arg, str) and cmd_arg.strip():
+            tool_cmd = cmd_arg[:500]
+
+        logger.warning(
+            "llm_review_allow_start",
+            tool_name=tc.tool_name,
+            user_intent=user_intent,
+            tool_intent=tool_intent.value,
+            risk_score=risk_score,
+        )
+
+        verdict = judge_toolcall_sync(
+            user_text=user_text,
+            tool_name=tc.tool_name,
+            tool_args=tc.arguments,
+            tool_cmd=tool_cmd,
+            rule_decision="ALLOW",
+            rule_reason=reason,
+            risk_score=risk_score,
+            api_url=llm_cfg.api_url,
+            api_key=llm_cfg.api_key,
+            model=llm_cfg.model,
+            timeout=llm_cfg.timeout,
+        )
+
+        if verdict is None:
+            # LLM 调用失败，维持 ALLOW
+            continue
+
+        if verdict.decision in ("CONFIRM", "BLOCK") and verdict.confidence >= 0.6:
+            # LLM 发现漏报，升级为违规
+            violation = IntentViolation(
+                tool_name=tc.tool_name,
+                tool_intent=tool_intent,
+                user_intent=user_intent,
+                is_compatible=is_compatible,
+                risk_score=risk_score,
+                risk_level=risk_level,
+                drift_indicator=drift,
+                decision=verdict.decision,
+                reason=f"{reason} | [LLM漏报捕获] {verdict.reason}",
+                tool_arguments=tc.arguments,
+                tool_cmd=tool_cmd,
+                user_prompt=user_text[:500],
+                llm_verdict=verdict.decision,
+                llm_reason=verdict.reason,
+                llm_confidence=verdict.confidence,
+                llm_raw_response=verdict.raw_response[:1000],
+            )
+            new_violations.append(violation)
+            logger.warning(
+                "llm_catch_missed_threat",
+                tool_name=tc.tool_name,
+                llm_decision=verdict.decision,
+                confidence=verdict.confidence,
+                reason=verdict.reason[:100],
+            )
+
+    return new_violations
 
 
 def _llm_review_violations(

@@ -99,6 +99,7 @@ class IntentLLMConfig(BaseModel):
     model: str = "gpt-4o-mini"      # 使用的模型
     timeout: float = 10.0           # 超时秒数
     min_risk_for_llm: str = "MEDIUM"  # 触发 LLM 的最低风险等级
+    review_allow: bool = True       # 是否对规则判定 ALLOW 的 ToolCall 也调用 LLM 审查（减少漏报）
 
 
 class IntentConfig(BaseModel):
