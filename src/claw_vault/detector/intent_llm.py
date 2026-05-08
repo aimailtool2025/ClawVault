@@ -210,7 +210,7 @@ def judge_toolcall_sync(
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.1,
-        "max_tokens": 300,
+        "max_tokens": 4096,
     }
 
     headers = {
