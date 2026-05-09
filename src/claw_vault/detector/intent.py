@@ -429,6 +429,7 @@ _SHELL_INTENT_RULES: list[tuple[re.Pattern[str], CommandIntent]] = [
     (re.compile(r"(curl|wget).*?(-X\s+POST|-d\s|--data\b|-F\s|--form\b)", re.I), CommandIntent.NETWORK_WRITE),
     # curl/wget POST + 敏感文件（管道 cat/输入重定向）
     (re.compile(r"(curl|wget).*?(-X\s+POST|-d\s|--data\b|-F\s|--form\b).*\b(cat|<)\s", re.I), CommandIntent.NETWORK_WRITE),
+    (re.compile(r"(curl|wget)\s+.*(-X\s+POST|--data\b|-d\s|-F\s|--form\b)", re.I), CommandIntent.NETWORK_WRITE),
     # 管道发送到网络工具
     (re.compile(r"\|\s*(curl|wget|nc|ncat)\s+", re.I), CommandIntent.NETWORK_WRITE),
     # 重定向到 /dev/tcp
