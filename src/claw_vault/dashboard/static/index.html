@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClawVault Dashboard</title>
+    <title>Agent Security Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
@@ -46,9 +46,9 @@
     <!-- Sidebar -->
     <aside class="w-60 bg-surface-900 border-r border-gray-800/60 flex flex-col fixed h-full z-30">
         <div class="p-5 flex items-center gap-3 border-b border-gray-800/60">
-            <img src="/static/Icon.png" alt="ClawVault" class="w-9 h-9 rounded-lg shadow-lg shadow-vault-500/20">
+            <img src="/static/Icon.png" alt="Agent Security" class="w-9 h-9 rounded-lg shadow-lg shadow-vault-500/20">
             <div>
-                <h1 class="text-base font-bold text-white leading-tight">ClawVault</h1>
+                <h1 class="text-base font-bold text-white leading-tight">Agent Security</h1>
                 <p class="text-[11px] text-gray-300 font-medium">Security Dashboard</p>
             </div>
         </div>
@@ -548,9 +548,9 @@
                     </div>
                 </div>
 
-                <!-- 2. 场景测试 -->
+                <!-- 2. 内置场景测试 -->
                 <div class="bg-surface-900 rounded-2xl border border-gray-800/50 p-5 mb-5">
-                    <h4 class="text-sm font-semibold text-white mb-3">场景测试</h4>
+                    <h4 class="text-sm font-semibold text-white mb-3">内置场景测试</h4>
                     <!-- Built-in Scenarios -->
                     <div id="intent-scenario-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                         <!-- populated by JS -->
@@ -558,7 +558,7 @@
                     <!-- Custom Test -->
                     <div class="border-t border-gray-800/40 pt-3">
                         <div class="flex items-center gap-2 mb-2">
-                            <span class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">自定义测试</span>
+                            <span class="text-sm font-semibold text-white">自定义场景测试</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
@@ -2708,7 +2708,7 @@ function startAutoRefresh() {
         if (currentTab === 'events') await loadScanHistory();
         if (currentTab === 'filemonitor') await loadFileMonitor();
         if (currentTab === 'intent') { await loadIntentStatus(); await loadIntentEvents(); }
-    }, 5000);
+    }, 10000);
 }
 function stopAutoRefresh() {
     if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
@@ -3320,20 +3320,19 @@ function loadAttackCases() {
 			        </tr>`;
 			    }).join('');
 
-			    window._intentRows = rows;
-			    if (rows.length > 0) showIntentDetail(0);
+				window._intentRows = rows;
+				// 恢复之前选中的行，超界则 fallback 到第一行
+				const savedIdx = window._selectedIntentIdx;
+				const targetIdx = (savedIdx != null && savedIdx < rows.length) ? savedIdx : 0;
+				showIntentDetail(targetIdx);
 			}
 			function showIntentDetail(idx) {
-			    const rows = window._intentRows || [];
-			    const e = rows[idx];
-			    if (!e) return;
-			    const detailEl = document.getElementById('intent-detail-panel');
-			    if (!detailEl) return;
-
-			    // 高亮选中行
-			    document.querySelectorAll('.intent-event-row').forEach(el => {
-			        el.classList.toggle('bg-vault-600/5', parseInt(el.dataset.idx) === idx);
-			    });
+				window._selectedIntentIdx = idx;
+				const rows = window._intentRows || [];
+				const e = rows[idx];
+				if (!e) return;
+				const detailEl = document.getElementById('intent-detail-panel');
+				if (!detailEl) return;
 
 			    // 显示详情面板
 			    detailEl.classList.remove('hidden');
@@ -3343,71 +3342,74 @@ function loadAttackCases() {
 			    const riskScore = e.risk_score != null ? e.risk_score.toFixed(2) : '-';
 			    const drift = e.drift_indicator != null ? e.drift_indicator.toFixed(2) : '-';
 			    const toolCmd = e.tool_cmd || '';
-			    const userPrompt = e.user_prompt || '';
+			    let userPrompt = e.user_prompt || '';
+						// 提取真实用户输入：去掉 Sender metadata，如果有日期分割取后面部分
+						const dateMatch = userPrompt.match(/\[\w+ \d{4}-\d{2}-\d{2} \d{2}:\d{2} [A-Z]{2,3}[+]?\d*\]/);
+						if (dateMatch) { userPrompt = userPrompt.split(dateMatch[0]).slice(1).join(dateMatch[0]); }
+						userPrompt = userPrompt.slice(0, 500);
 			    const ruleReason = (e.reason || '').split('|')[0].trim() || '-';
 			    const llmReasonRaw = (e.reason || '').split('|')[1]?.trim() || '';
 			    const llmReason = llmReasonRaw.replace(/^\[LLM(?:确认|漏报捕获)\]\s*/, '');
 
-			    detailEl.innerHTML = `
-			    <div class="space-y-3">
-			        <div class="flex items-center justify-between">
-			            <h5 class="text-xs font-semibold text-white">\u8FDD\u89C4\u8BE6\u60C5</h5>
-			            <div class="flex items-center gap-1.5">
-			                <span class="text-[10px] px-1.5 py-0.5 rounded ${e.risk_score >= 0.7 ? 'bg-red-500/10 text-red-400' : e.risk_score >= 0.4 ? 'bg-yellow-500/10 text-yellow-400' : 'bg-green-500/10 text-green-400'} font-medium">\u98CE\u9669 ${riskScore}</span>
-			                <span class="text-[10px] px-1.5 py-0.5 rounded ${decision.bg} ${decision.text} font-medium">${decision.label}</span>
-			            </div>
-			        </div>
+						detailEl.innerHTML = `
+						<div class="space-y-3">
+						    <h5 class="text-xs font-semibold text-white mb-3">\u8FDD\u89C4\u8BE6\u60C5</h5>
 
-			        <div class="grid grid-cols-2 gap-2 text-[11px]">
-			            <div class="bg-surface-900/50 rounded-lg p-2.5">
-			                <div class="text-gray-300 text-[10px] mb-0.5">\u65F6\u95F4</div>
-			                <div class="text-gray-200 font-mono">${escHtml(time)}</div>
-			            </div>
-			            <div class="bg-surface-900/50 rounded-lg p-2.5">
-			                <div class="text-gray-300 text-[10px] mb-0.5">\u9632\u62A4\u6A21\u5F0F</div>
-			                <div class="text-gray-200">${escHtml(e.guardMode || '-')}</div>
-			            </div>
-			            <div class="bg-surface-900/50 rounded-lg p-2.5">
-			                <div class="text-gray-300 text-[10px] mb-0.5">\u7528\u6237\u610F\u56FE</div>
-			                <div class="text-vault-400 font-medium">${escHtml(e.userIntent || e.user_intent || '-')}</div>
-			            </div>
-			            <div class="bg-surface-900/50 rounded-lg p-2.5">
-			                <div class="text-gray-300 text-[10px] mb-0.5">\u6267\u884C\u610F\u56FE</div>
-			                <div class="text-orange-400">${escHtml(e.tool_intent || '-')}</div>
-			            </div>
-			            <div class="bg-surface-900/50 rounded-lg p-2.5">
-			                <div class="text-gray-300 text-[10px] mb-0.5">\u5DE5\u5177\u540D\u79F0</div>
-			                <div class="text-gray-200">${escHtml(e.tool_name || '-')}</div>
-			            </div>
-			            <div class="bg-surface-900/50 rounded-lg p-2.5">
-			                <div class="text-gray-300 text-[10px] mb-0.5">\u504F\u79BB\u503C</div>
-			                <div class="text-gray-200">${drift}</div>
-			            </div>
-			        </div>
+						    <div class="grid grid-cols-2 gap-2 text-[11px]">
+						        <div class="bg-surface-900/50 rounded-lg p-2.5">
+						            <div class="text-gray-300 text-[10px] mb-0.5">\u65F6\u95F4</div>
+						            <div class="text-gray-200 font-mono">${escHtml(time)}</div>
+						        </div>
+						        <div class="bg-surface-900/50 rounded-lg p-2.5">
+						            <div class="text-gray-300 text-[10px] mb-0.5">\u98CE\u9669\u7B49\u7EA7</div>
+						            <div class="${e.risk_score >= 0.7 ? 'text-red-400' : e.risk_score >= 0.4 ? 'text-yellow-400' : 'text-green-400'} font-medium">${e.risk_score >= 0.7 ? '\u9AD8' : e.risk_score >= 0.4 ? '\u4E2D' : '\u4F4E'}</div>
+						        </div>
+						        <div class="bg-surface-900/50 rounded-lg p-2.5">
+						            <div class="text-gray-300 text-[10px] mb-0.5">\u7528\u6237\u610F\u56FE</div>
+						            <div class="text-vault-400 font-medium">${escHtml(e.userIntent || e.user_intent || '-')}</div>
+						        </div>
+						        <div class="bg-surface-900/50 rounded-lg p-2.5">
+						            <div class="text-gray-300 text-[10px] mb-0.5">\u6267\u884C\u610F\u56FE</div>
+						            <div class="text-orange-400">${escHtml(e.tool_intent || '-')}</div>
+						        </div>
+						        <div class="bg-surface-900/50 rounded-lg p-2.5">
+						            <div class="text-gray-300 text-[10px] mb-0.5">\u5DE5\u5177\u540D\u79F0</div>
+						            <div class="text-gray-200">${escHtml(e.tool_name || '-')}</div>
+						        </div>
+						        <div class="bg-surface-900/50 rounded-lg p-2.5">
+						            <div class="text-gray-300 text-[10px] mb-0.5">\u504F\u79BB\u503C</div>
+						            <div class="text-gray-200">${drift}</div>
+						        </div>
+						        <div class="bg-surface-900/50 rounded-lg p-2.5">
+						            <div class="text-gray-300 text-[10px] mb-0.5">\u52A8\u4F5C</div>
+						            <div class="font-medium ${decision.text}">${decision.label}</div>
+						        </div>
+						    </div>
 
-			        <div class="bg-surface-900/50 rounded-lg p-2.5">
-			            <div class="text-gray-300 text-[10px] mb-0.5">\u539F\u56E0</div>
-			            <div class="text-gray-300 text-[11px] leading-relaxed">${escHtml(ruleReason)}</div>
-			        </div>
+						    ${userPrompt ? `
+						    <div class="bg-surface-900/50 rounded-lg p-2.5">
+						        <div class="text-gray-300 text-[10px] mb-0.5">\u7528\u6237\u6307\u4EE4</div>
+						        <div class="text-gray-300 text-[11px] font-mono whitespace-pre-wrap break-all max-h-24 overflow-y-auto">${escHtml(userPrompt)}</div>
+						    </div>` : ''}
 
-			        ${userPrompt ? `
-			        <div class="bg-surface-900/50 rounded-lg p-2.5">
-			            <div class="text-gray-300 text-[10px] mb-0.5">\u7528\u6237\u6307\u4EE4</div>
-			            <div class="text-gray-300 text-[11px] font-mono whitespace-pre-wrap break-all max-h-24 overflow-y-auto">${escHtml(userPrompt)}</div>
-			        </div>` : ''}
+						    ${toolCmd ? `
+						    <div class="bg-surface-900/50 rounded-lg p-2.5">
+						        <div class="text-gray-300 text-[10px] mb-0.5">\u5DE5\u5177\u547D\u4EE4</div>
+						        <div class="text-red-300/80 text-[11px] font-mono whitespace-pre-wrap break-all max-h-36 overflow-y-auto">${escHtml(toolCmd)}</div>
+						    </div>` : ''}
 
-			        ${toolCmd ? `
-			        <div class="bg-surface-900/50 rounded-lg p-2.5">
-			            <div class="text-gray-300 text-[10px] mb-0.5">\u5DE5\u5177\u547D\u4EE4</div>
-			            <div class="text-red-300/80 text-[11px] font-mono whitespace-pre-wrap break-all max-h-36 overflow-y-auto">${escHtml(toolCmd)}</div>
-			        </div>` : ''}
+						    ${llmReason ? `
+						    <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-2.5">
+						        <div class="text-gray-300 text-[10px] mb-1">\u5927\u6A21\u578B\u5224\u522B</div>
+						        <div class="text-gray-300 text-[11px] leading-relaxed">${escHtml(llmReason)}</div>
+						    </div>` : ''}
 
-			        ${llmReason ? `
-			        <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-2.5">
-			            <div class="text-gray-300 text-[10px] mb-1">\u5927\u6A21\u578B\u5224\u522B</div>
-			            <div class="text-gray-300 text-[11px] leading-relaxed">${escHtml(llmReason)}</div>
-			        </div>` : ''}
-			    </div>`;
+						    <div class="bg-surface-900/50 rounded-lg p-2.5">
+						        <div class="text-gray-300 text-[10px] mb-0.5">\u5185\u7F6E\u5F15\u64CE\u5224\u522B</div>
+						        <div class="text-gray-300 text-[11px] leading-relaxed">${escHtml(ruleReason)}</div>
+						    </div>
+						</div>`;
+
 			}
 
 			async function saveIntentConfig() {

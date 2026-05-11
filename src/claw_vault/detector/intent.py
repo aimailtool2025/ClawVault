@@ -624,7 +624,7 @@ def correlate(
         reason = f"工具意图 {cmd_value} 与用户意图 {user_intent} 兼容"
     elif drift >= 0.6:
         decision = "BLOCK"
-        reason = f"工具意图 {cmd_value} 与用户意图 {user_intent} 不兼容且漂移={drift:.2f}"
+        reason = f"工具意图 {cmd_value} 与用户意图 {user_intent} 不兼容且偏离值为{drift:.2f}"
     else:
         decision = "CONFIRM"
         reason = f"意图偏离: 工具={cmd_value}, 用户={user_intent}, 漂移={drift:.2f}"
