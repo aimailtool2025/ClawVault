@@ -259,12 +259,13 @@ def judge_toolcall_sync(
         verdict = _parse_verdict(content)
         if verdict:
             verdict.raw_response = content  # 保留原始输出
+            # 单独写入原始输出到文件
+            _write_llm_raw(tool_name, user_text, prompt, content)
             logger.warning(
                 "llm_judge_result",
                 decision=verdict.decision,
                 confidence=verdict.confidence,
                 reason=verdict.reason[:100],
-                raw_response=content[:200],
             )
         return verdict
 
@@ -275,6 +276,27 @@ def judge_toolcall_sync(
         logger.warning("llm_judge_failed", error=str(exc))
         return None
 
+
+
+
+def _write_llm_raw(tool_name: str, user_text: str, prompt: str, raw_response: str):
+    """将LLM原始输出写入单独的文件"""
+    from pathlib import Path
+    log_path = Path.home() / ".ClawVault" / "llm_raw_responses.jsonl"
+
+    try:
+        record = {
+            "time": datetime.now().isoformat(),
+            "tool_name": tool_name,
+            "user_text": user_text[:200] if user_text else "",
+            "prompt": prompt[:2000],
+            "raw_response": raw_response,
+        }
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
 def _parse_verdict_fallback(text: str) -> LLMVerdict | None:
     """从非 JSON 文本中兜底提取决策。
