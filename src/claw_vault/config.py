@@ -102,11 +102,20 @@ class IntentLLMConfig(BaseModel):
     review_allow: bool = True       # 是否对规则判定 ALLOW 的 ToolCall 也调用 LLM 审查（减少漏报）
 
 
+class IntentWhitelistConfig(BaseModel):
+    """意图白名单配置。"""
+    enabled: bool = False
+    trusted_tools: list[str] = Field(default_factory=list)  # 可信工具列表
+    trusted_paths: list[str] = Field(default_factory=list)  # 可信路径列表（如 /tmp, /var/log）
+    trusted_operations: list[str] = Field(default_factory=list)  # 可信操作模式（如 curl https://trusted-*）
+
+
 class IntentConfig(BaseModel):
     """意图识别攻击防护配置。"""
     enabled: bool = True
     guard_mode: str = "permissive"  # permissive | interactive | strict
     llm: IntentLLMConfig = Field(default_factory=IntentLLMConfig)
+    whitelist: IntentWhitelistConfig = Field(default_factory=IntentWhitelistConfig)
 
 
 class OpenClawSessionRedactionConfig(BaseModel):

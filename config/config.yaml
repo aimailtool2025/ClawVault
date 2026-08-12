@@ -57,6 +57,12 @@ intent:
     model: gpt-4o-mini
     timeout: 10.0
     min_risk_for_llm: MEDIUM
+    review_allow: true
+  whitelist:
+    enabled: false
+    trusted_tools: []
+    trusted_paths: []
+    trusted_operations: []
 openclaw:
   session_redaction:
     enabled: true

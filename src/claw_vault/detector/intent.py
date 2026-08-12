@@ -1,3 +1,4 @@
+
 """意图识别引擎 — 从 LCIR 适配，用于 AI 响应方向的 ToolCall 越界检测。
 
 核心流程：
@@ -80,47 +81,140 @@ class IntentViolation:
 
 
 # ---------------------------------------------------------------------------
+# 会话级意图追踪 — 用于检测连续操作的意图漂移
+# ---------------------------------------------------------------------------
+
+class IntentSession:
+    """会话级意图追踪，用于发现逐步渗透攻击。"""
+
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.operations: list[tuple[float, CommandIntent, float, str]] = []  # (time, tool_intent, drift, user_intent)
+        self._drift_history: list[float] = []
+
+    def record(self, tool_intent: CommandIntent, drift: float, user_intent: str) -> None:
+        """记录一次操作。"""
+        import time as _time
+        self.operations.append((_time.time(), tool_intent, drift, user_intent))
+        self._drift_history.append(drift)
+
+    def calc_drift_trend(self) -> float:
+        """计算最近3次操作的平均漂移值。用于检测连续高漂移攻击。"""
+        if len(self._drift_history) < 3:
+            return 0.0
+        recent = self._drift_history[-3:]
+        return sum(recent) / len(recent)
+
+    def get_session_drift_boost(self) -> float:
+        """获取会话级漂移加成。如果连续高漂移，返回加成值。"""
+        trend = self.calc_drift_trend()
+        if trend >= 0.6:
+            return 0.2  # 高漂移趋势，加成 0.2
+        elif trend >= 0.4:
+            return 0.1
+        return 0.0
+
+
+# 全局会话存储（生产环境应使用 Redis 等）
+_intent_sessions: dict[str, IntentSession] = {}
+
+
+def get_session(session_id: str) -> IntentSession:
+    """获取或创建会话。"""
+    if session_id not in _intent_sessions:
+        _intent_sessions[session_id] = IntentSession(session_id)
+    return _intent_sessions[session_id]
+
+
+# ---------------------------------------------------------------------------
 # 1. 用户意图推断（LCIR 没有，新建）
 # ---------------------------------------------------------------------------
 
 # 用户自然语言关键词 → ContextCorrelator._COMPATIBILITY_MATRIX 的 key
 _USER_INTENT_KEYWORDS: dict[str, list[str]] = {
     "FILE_READ": [
-        "查看", "显示", "读取", "检查", "搜索", "看", "列出", "浏览",
-        "cat", "read", "show", "display", "view", "list", "check", "inspect",
-        "find", "grep", "head", "tail", "less", "more",
+        # 中文
+        "查看", "显示", "读取", "检查", "搜索", "看", "列出", "浏览", "观察", "审阅",
+        "查询", "获取", "打开", "访问", "观察", "分析", "监控",
+        # 英文
+        "cat", "read", "show", "display", "view", "list", "check", "inspect", "scan",
+        "find", "grep", "head", "tail", "less", "more", "look", "watch", "observe",
+        "get", "fetch", "open", "access", "monitor", "analyze", "review",
+        # 组合
+        "看看", "看一下", "查一下", "读一下", "帮我看", "帮我查",
     ],
     "FILE_WRITE": [
-        "创建", "修改", "编辑", "保存", "写入", "更新", "改", "写",
-        "create", "write", "edit", "modify", "update", "save", "change",
+        # 中文
+        "创建", "修改", "编辑", "保存", "写入", "更新", "改", "写", "生成", "编辑",
+        "新建", "追加", "重写", "写入", "输出",
+        # 英文
+        "create", "write", "edit", "modify", "update", "save", "change", "generate",
+        "put", "set", "add", "append", "replace", "patch",
+        # 组合
+        "帮我创建", "帮我写", "帮我修改", "帮我编辑",
     ],
     "FILE_DELETE": [
-        "删除", "清除", "移除", "清空", "删", "去掉",
-        "delete", "remove", "clean", "clear", "erase", "drop",
+        # 中文
+        "删除", "清除", "移除", "清空", "删", "去掉", "销毁", "丢弃",
+        # 英文
+        "delete", "remove", "clean", "clear", "erase", "drop", "destroy", "discard",
+        "rm", "unlink",
     ],
     "CODE_BUILD": [
-        "编译", "构建", "打包", "测试", "运行项目", "启动",
-        "build", "compile", "test", "run", "start", "make",
+        # 中文
+        "编译", "构建", "打包", "测试", "启动项目", "运行项目", "启动应用",
+        "执行项目", "构建项目", "运行测试",
+        # 英文
+        "build", "compile", "test", "run", "start", "make", "execute", "launch",
+        "build project", "run project", "start project",
     ],
     "INSTALL": [
-        "安装", "部署", "配置", "设置", "初始化",
-        "install", "setup", "deploy", "configure", "init",
+        # 中文
+        "安装", "部署", "配置", "设置", "初始化", "安装软件", "安装依赖",
+        "npm install", "pip install", "apt install", "yum install",
+        # 英文
+        "install", "setup", "deploy", "configure", "init", "setup project",
+        "install package", "install dependency", "npm i", "pip install",
     ],
     "DEPLOY": [
-        "发布", "上线", "推送", "部署到", "生产",
-        "deploy", "release", "publish", "push", "production",
+        # 中文
+        "发布", "上线", "推送", "部署到", "生产环境", "发布到",
+        "部署应用", "发布版本",
+        # 英文
+        "deploy", "release", "publish", "push", "production", "deploy to",
+        "release version", "publish app",
     ],
     "DEBUG": [
-        "调试", "排查", "诊断", "排错", "定位问题",
-        "debug", "troubleshoot", "diagnose", "investigate",
+        # 中文
+        "调试", "排查", "诊断", "排错", "定位问题", "修复错误", "调试问题",
+        "看看哪里", "哪里出错了", "报错了",
+        # 英文
+        "debug", "troubleshoot", "diagnose", "investigate", "fix error", "debug issue",
+        "fix bug", "debug problem",
     ],
     "NETWORK_ACCESS": [
-        "下载", "上传", "请求", "访问", "发送", "网络",
-        "download", "upload", "request", "fetch", "send", "network",
+        # 中文
+        "下载", "上传", "请求", "访问URL", "发送请求", "网络请求", "curl",
+        "获取文件", "拉取", "提交", "HTTP",
+        # 英文
+        "download", "upload", "request", "fetch", "send", "network", "curl",
+        "wget", "http", "api call", "rest",
     ],
     "SYSTEM_ADMIN": [
-        "管理", "监控", "运维", "系统", "服务器",
-        "admin", "manage", "monitor", "system", "server",
+        # 中文
+        "管理", "监控", "运维", "系统管理", "服务器管理", "重启", "停止",
+        "启动服务", "查看状态", "系统信息",
+        # 英文
+        "admin", "manage", "monitor", "system", "server", "restart", "stop",
+        "start service", "systemctl", "service manager",
+    ],
+    "CODE_EXECUTE": [
+        # 中文
+        "执行命令", "运行命令", "执行脚本", "运行脚本", "执行代码",
+        "bash", "shell", "命令行", "终端",
+        # 英文
+        "execute command", "run command", "run script", "exec", "bash",
+        "shell", "command line", "terminal",
     ],
 }
 
@@ -843,16 +937,21 @@ def _score_pattern_risk(tool_call: ToolCallInfo) -> float:
 def analyze_response(
     response_body: dict | list | str,
     user_text: str,
+    session_id: str = "default",
 ) -> list[IntentViolation]:
     """完整的响应意图分析流水线。
 
     Args:
         response_body: AI 响应体（dict/list/str）
         user_text: 用户最后一条消息文本
+        session_id: 会话ID，用于追踪操作链
 
     Returns:
         违规列表（仅包含需要 CONFIRM/BLOCK 的 ToolCall，ALLOW 的不返回）
     """
+    # 获取会话
+    session = get_session(session_id)
+
     # 解析响应体
     body = response_body
     if isinstance(body, str):
@@ -882,6 +981,18 @@ def analyze_response(
 
         # 风险评分
         risk_score, risk_level, dimensions = score_toolcall_risk(tc, tool_intent, user_intent)
+
+        # 会话漂移加成：如果连续高漂移，增加风险分
+        drift_boost = session.get_session_drift_boost()
+        if drift_boost > 0:
+            risk_score = min(1.0, risk_score + drift_boost)
+            if risk_score >= 0.6:
+                risk_level = "HIGH"
+            if risk_score >= 0.8:
+                risk_level = "CRITICAL"
+
+        # 记录操作到会话
+        session.record(tool_intent, drift, user_intent)
 
         # 即使意图兼容，高风险数据外泄行为也应拦截
         # 升级决策：基于风险维度强化
@@ -933,6 +1044,10 @@ def analyze_response(
         new_violations = _llm_review_allowed(allow_candidates, user_text, user_intent)
         if new_violations:
             violations.extend(new_violations)
+
+    # --- 白名单检查：直接放行符合条件的操作 ---
+    if violations:
+        violations = _apply_whitelist(violations)
 
     if violations:
         logger.info(
@@ -1148,3 +1263,51 @@ def _llm_review_violations(
             remaining.append(v)
 
     return remaining
+
+
+# ---------------------------------------------------------------------------
+# 8. 白名单机制 — 客户可配置信任的操作
+# ---------------------------------------------------------------------------
+
+def _apply_whitelist(violations: list[IntentViolation]) -> list[IntentViolation]:
+    """应用白名单配置，放行符合条件的操作。
+    
+    白名单检查优先级：
+    1. 可信工具名（完全匹配）
+    2. 可信路径前缀
+    3. 可信操作模式（支持通配符）
+    """
+    try:
+        from claw_vault.config import load_settings
+        settings = load_settings()
+        whitelist_cfg = settings.intent.whitelist
+    except Exception:
+        return violations
+
+    if not whitelist_cfg.enabled:
+        return violations
+
+    filtered = []
+    for v in violations:
+        # 工具名白名单
+        if v.tool_name in whitelist_cfg.trusted_tools:
+            logger.info("whitelist_tool_bypass", tool_name=v.tool_name)
+            continue
+
+        # 路径白名单
+        tool_cmd = v.tool_cmd or ""
+        if tool_cmd:
+            for trusted_path in whitelist_cfg.trusted_paths:
+                # 支持 /tmp, /var/log 等前缀匹配
+                if trusted_path in tool_cmd or tool_cmd.startswith(trusted_path):
+                    logger.info("whitelist_path_bypass", tool_name=v.tool_name, path=trusted_path)
+                    break
+            else:
+                filtered.append(v)
+        else:
+            filtered.append(v)
+
+    if filtered and len(filtered) < len(violations):
+        logger.info("whitelist_filtered", original=len(violations), remaining=len(filtered))
+
+    return filtered
